@@ -138,6 +138,8 @@ const LoginModule = {
         const email = document.getElementById('adminEmail').value.trim();
         const password = document.getElementById('adminPassword').value;
         
+        console.log('Admin login attempt:', { email, password });
+        
         // Validation
         if (!email || !password) {
             Notifications.error('Please fill in all fields');
@@ -156,8 +158,10 @@ const LoginModule = {
                 email: email,
                 role: 'admin'
             };
+            console.log('Admin credentials valid, calling App.login');
             App.login(admin, 'admin');
         } else {
+            console.log('Invalid admin credentials');
             Notifications.error('Invalid admin credentials');
         }
     },

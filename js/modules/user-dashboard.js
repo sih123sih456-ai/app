@@ -66,6 +66,11 @@ const UserDashboard = {
             welcomeElement.textContent = `Welcome, ${currentUser.name || currentUser.email}`;
         }
         
+        // Ensure hamburger menu is initialized
+        if (App.modules.hamburgerMenu && App.modules.hamburgerMenu.init) {
+            App.modules.hamburgerMenu.init();
+        }
+        
         // Set up event listeners when dashboard is shown
         this.setupEventListenersOnShow();
         

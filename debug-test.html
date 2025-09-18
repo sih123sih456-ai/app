@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Debug Test for Civic Issue Reporter</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Admin Login</h2>
+        <button onclick="testAdminLogin()">Test Admin Login</button>
+        <div id="adminLoginResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Test Hamburger Menu</h2>
+        <button onclick="testHamburgerMenu()">Test Hamburger Menu</button>
+        <div id="hamburgerResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Test Data Persistence</h2>
+        <button onclick="testDataPersistence()">Test Data Persistence</button>
+        <div id="dataResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Test Module Loading</h2>
+        <button onclick="testModuleLoading()">Test Module Loading</button>
+        <div id="moduleResult"></div>
+    </div>
+
+    <script>
+        function testAdminLogin() {
+            const result = document.getElementById('adminLoginResult');
+            try {
+                // Test if App is available
+                if (typeof App === 'undefined') {
+                    result.innerHTML = '<div class="error">App is not defined</div>';
+                    return;
+                }
+                
+                // Test admin login
+                const admin = {
+                    name: 'System Administrator',
+                    email: 'admin@gmail.com',
+                    role: 'admin'
+                };
+                
+                App.login(admin, 'admin');
+                result.innerHTML = '<div class="success">Admin login test completed - check console for details</div>';
+            } catch (error) {
+                result.innerHTML = `<div class="error">Admin login test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function testHamburgerMenu() {
+            const result = document.getElementById('hamburgerResult');
+            try {
+                // Test if hamburger buttons exist
+                const userHamburger = document.getElementById('userHamburger');
+                const adminHamburger = document.getElementById('adminHamburger');
+                const officerHamburger = document.getElementById('officerHamburger');
+                
+                let html = '<div>';
+                html += `User Hamburger: ${userHamburger ? 'Found' : 'Not Found'}<br>`;
+                html += `Admin Hamburger: ${adminHamburger ? 'Found' : 'Not Found'}<br>`;
+                html += `Officer Hamburger: ${officerHamburger ? 'Found' : 'Not Found'}<br>`;
+                html += '</div>';
+                
+                if (userHamburger && adminHamburger && officerHamburger) {
+                    result.innerHTML = `<div class="success">${html}</div>`;
+                } else {
+                    result.innerHTML = `<div class="error">${html}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Hamburger menu test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function testDataPersistence() {
+            const result = document.getElementById('dataResult');
+            try {
+                // Test localStorage
+                const testData = { test: 'data', timestamp: Date.now() };
+                localStorage.setItem('testData', JSON.stringify(testData));
+                
+                const retrieved = JSON.parse(localStorage.getItem('testData'));
+                
+                if (retrieved && retrieved.test === 'data') {
+                    result.innerHTML = '<div class="success">Data persistence test passed - localStorage is working</div>';
+                } else {
+                    result.innerHTML = '<div class="error">Data persistence test failed - localStorage not working</div>';
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Data persistence test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function testModuleLoading() {
+            const result = document.getElementById('moduleResult');
+            try {
+                let html = '<div>';
+                html += `App: ${typeof App !== 'undefined' ? 'Loaded' : 'Not Loaded'}<br>`;
+                html += `DataManager: ${typeof DataManager !== 'undefined' ? 'Loaded' : 'Not Loaded'}<br>`;
+                html += `Notifications: ${typeof Notifications !== 'undefined' ? 'Loaded' : 'Not Loaded'}<br>`;
+                html += `LoginModule: ${typeof LoginModule !== 'undefined' ? 'Loaded' : 'Not Loaded'}<br>`;
+                html += `AdminDashboard: ${typeof AdminDashboard !== 'undefined' ? 'Loaded' : 'Not Loaded'}<br>`;
+                html += `HamburgerMenu: ${typeof HamburgerMenu !== 'undefined' ? 'Loaded' : 'Not Loaded'}<br>`;
+                html += '</div>';
+                
+                result.innerHTML = html;
+            } catch (error) {
+                result.innerHTML = `<div class="error">Module loading test failed: ${error.message}</div>`;
+            }
+        }
+    </script>
+    
+    <!-- Load the main application scripts -->
+    <script src="js/core/config.js"></script>
+    <script src="js/core/app.js"></script>
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/data.js"></script>
+    <script src="js/modules/language.js"></script>
+    <script src="js/modules/image-processor.js"></script>
+    <script src="js/modules/hamburger-menu.js"></script>
+    <script src="js/modules/login.js"></script>
+    <script src="js/modules/user-dashboard.js"></script>
+    <script src="js/modules/admin-dashboard.js"></script>
+    <script src="js/modules/admin-requests.js"></script>
+    <script src="js/modules/officer-dashboard.js"></script>
+    <script src="js/modules/chatbot.js"></script>
+    <script src="js/modules/maps.js"></script>
+    <script src="js/modules/notifications.js"></script>
+    
+    <script>
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            App.init();
+        });
+    </script>
+</body>
+</html>

@@ -4,6 +4,7 @@ const DataManager = {
     accessRequests: [],
     users: [],
     officers: [],
+    admins: [],
     notifications: [],
 
     // Initialize with sample data
@@ -18,30 +19,45 @@ const DataManager = {
     // Load data from localStorage
     loadFromStorage() {
         try {
+            console.log('Loading data from localStorage...');
+            
             const storedIssues = localStorage.getItem('civicIssues');
             if (storedIssues) {
                 this.issues = JSON.parse(storedIssues);
+                console.log('Loaded issues:', this.issues.length);
             }
 
             const storedRequests = localStorage.getItem('civicAccessRequests');
             if (storedRequests) {
                 this.accessRequests = JSON.parse(storedRequests);
+                console.log('Loaded access requests:', this.accessRequests.length);
             }
 
             const storedUsers = localStorage.getItem('civicUsers');
             if (storedUsers) {
                 this.users = JSON.parse(storedUsers);
+                console.log('Loaded users:', this.users.length);
             }
 
             const storedOfficers = localStorage.getItem('civicOfficers');
             if (storedOfficers) {
                 this.officers = JSON.parse(storedOfficers);
+                console.log('Loaded officers:', this.officers.length);
+            }
+
+            const storedAdmins = localStorage.getItem('civicAdmins');
+            if (storedAdmins) {
+                this.admins = JSON.parse(storedAdmins);
+                console.log('Loaded admins:', this.admins.length);
             }
 
             const storedNotifications = localStorage.getItem('civicNotifications');
             if (storedNotifications) {
                 this.notifications = JSON.parse(storedNotifications);
+                console.log('Loaded notifications:', this.notifications.length);
             }
+            
+            console.log('Data loading completed');
         } catch (error) {
             console.error('Error loading from storage:', error);
         }
@@ -50,11 +66,14 @@ const DataManager = {
     // Save data to localStorage
     saveToStorage() {
         try {
+            console.log('Saving data to localStorage...');
             localStorage.setItem('civicIssues', JSON.stringify(this.issues));
             localStorage.setItem('civicAccessRequests', JSON.stringify(this.accessRequests));
             localStorage.setItem('civicUsers', JSON.stringify(this.users));
             localStorage.setItem('civicOfficers', JSON.stringify(this.officers));
+            localStorage.setItem('civicAdmins', JSON.stringify(this.admins));
             localStorage.setItem('civicNotifications', JSON.stringify(this.notifications));
+            console.log('Data saved to localStorage successfully');
         } catch (error) {
             console.error('Error saving to storage:', error);
         }
@@ -67,7 +86,7 @@ const DataManager = {
         this.accessRequests = [];
         this.notifications = [];
         
-        // Only add sample users and officers for testing
+        // Only add sample users, officers, and admins for testing
         this.users = [
             {
                 id: 1,

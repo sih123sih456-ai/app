@@ -222,6 +222,8 @@ const App = {
     // Authentication
     login(user, role) {
         try {
+            console.log('Login attempt:', { user, role });
+            
             // Validate inputs
             if (!user || !role) {
                 throw new Error('Invalid user or role');
@@ -239,6 +241,8 @@ const App = {
                 loginPage.style.display = 'none';
                 loginPage.classList.remove('active');
             }
+            
+            console.log('Showing dashboard for role:', role);
             
             // Show appropriate dashboard
             switch (role) {

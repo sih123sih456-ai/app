@@ -17,10 +17,21 @@ const AdminDashboard = {
 
     // Show admin dashboard
     show() {
-        this.updateStats();
-        this.loadAdminIssues();
-        this.loadAccessRequests();
-        this.loadAdminDetails();
+        console.log('Admin dashboard show() called');
+        try {
+            // Ensure hamburger menu is initialized
+            if (App.modules.hamburgerMenu && App.modules.hamburgerMenu.init) {
+                App.modules.hamburgerMenu.init();
+            }
+            
+            this.updateStats();
+            this.loadAdminIssues();
+            this.loadAccessRequests();
+            this.loadAdminDetails();
+            console.log('Admin dashboard show() completed successfully');
+        } catch (error) {
+            console.error('Error in admin dashboard show():', error);
+        }
     },
 
     // Update admin statistics

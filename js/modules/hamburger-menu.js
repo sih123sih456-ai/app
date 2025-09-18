@@ -14,26 +14,46 @@ const HamburgerMenu = {
 
     // Set up event listeners
     setupEventListeners() {
+        console.log('Setting up hamburger menu event listeners...');
+        
         // User dashboard hamburger
-        document.getElementById('userHamburger')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.toggleSidebar('user');
-        });
+        const userHamburger = document.getElementById('userHamburger');
+        if (userHamburger) {
+            console.log('User hamburger button found');
+            userHamburger.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar('user');
+            });
+        } else {
+            console.log('User hamburger button not found');
+        }
 
         // Admin dashboard hamburger
-        document.getElementById('adminHamburger')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.toggleSidebar('admin');
-        });
+        const adminHamburger = document.getElementById('adminHamburger');
+        if (adminHamburger) {
+            console.log('Admin hamburger button found');
+            adminHamburger.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar('admin');
+            });
+        } else {
+            console.log('Admin hamburger button not found');
+        }
 
         // Officer dashboard hamburger
-        document.getElementById('officerHamburger')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            this.toggleSidebar('officer');
-        });
+        const officerHamburger = document.getElementById('officerHamburger');
+        if (officerHamburger) {
+            console.log('Officer hamburger button found');
+            officerHamburger.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSidebar('officer');
+            });
+        } else {
+            console.log('Officer hamburger button not found');
+        }
 
         // Close sidebar when clicking outside
         document.addEventListener('click', (e) => {
