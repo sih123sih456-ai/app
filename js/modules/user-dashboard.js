@@ -8,23 +8,54 @@ const UserDashboard = {
 
     // Set up event listeners
     setupEventListeners() {
+        // This will be called when the dashboard is shown
+        console.log('Event listeners will be set up when dashboard is shown');
+    },
+
+    // Set up event listeners when dashboard is shown
+    setupEventListenersOnShow() {
         // Issue form submission
-        document.getElementById('issueForm').addEventListener('submit', (e) => this.handleIssueSubmission(e));
+        const issueForm = document.getElementById('issueForm');
+        if (issueForm && !issueForm.hasAttribute('data-listener-added')) {
+            issueForm.addEventListener('submit', (e) => this.handleIssueSubmission(e));
+            issueForm.setAttribute('data-listener-added', 'true');
+        }
         
         // Location selection
-        document.getElementById('selectLocationBtn').addEventListener('click', () => MapManager.showLocationMap());
+        const selectLocationBtn = document.getElementById('selectLocationBtn');
+        if (selectLocationBtn && !selectLocationBtn.hasAttribute('data-listener-added')) {
+            selectLocationBtn.addEventListener('click', () => MapManager.showLocationMap());
+            selectLocationBtn.setAttribute('data-listener-added', 'true');
+        }
         
         // Photo upload
-        document.getElementById('issuePhoto').addEventListener('change', (e) => this.handlePhotoPreview(e));
+        const issuePhoto = document.getElementById('issuePhoto');
+        if (issuePhoto && !issuePhoto.hasAttribute('data-listener-added')) {
+            issuePhoto.addEventListener('change', (e) => this.handlePhotoPreview(e));
+            issuePhoto.setAttribute('data-listener-added', 'true');
+        }
         
         // Status filter
-        document.getElementById('statusFilter').addEventListener('change', () => this.loadUserIssues());
+        const statusFilter = document.getElementById('statusFilter');
+        if (statusFilter && !statusFilter.hasAttribute('data-listener-added')) {
+            statusFilter.addEventListener('change', () => this.loadUserIssues());
+            statusFilter.setAttribute('data-listener-added', 'true');
+        }
         
         // Chatbot
-        document.getElementById('chatbotSend').addEventListener('click', () => this.sendChatbotMessage());
-        document.getElementById('chatbotInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.sendChatbotMessage();
-        });
+        const chatbotSend = document.getElementById('chatbotSend');
+        if (chatbotSend && !chatbotSend.hasAttribute('data-listener-added')) {
+            chatbotSend.addEventListener('click', () => this.sendChatbotMessage());
+            chatbotSend.setAttribute('data-listener-added', 'true');
+        }
+        
+        const chatbotInput = document.getElementById('chatbotInput');
+        if (chatbotInput && !chatbotInput.hasAttribute('data-listener-added')) {
+            chatbotInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.sendChatbotMessage();
+            });
+            chatbotInput.setAttribute('data-listener-added', 'true');
+        }
     },
 
     // Show user dashboard
@@ -34,6 +65,9 @@ const UserDashboard = {
         if (welcomeElement) {
             welcomeElement.textContent = `Welcome, ${currentUser.name || currentUser.email}`;
         }
+        
+        // Set up event listeners when dashboard is shown
+        this.setupEventListenersOnShow();
         
         this.updateStats();
         this.loadUserIssues();
@@ -205,11 +239,14 @@ const UserDashboard = {
     // Handle issue submission
     handleIssueSubmission(e) {
         e.preventDefault();
+        console.log('Form submission started');
         
         const title = document.getElementById('issueTitle').value.trim();
         const description = document.getElementById('issueDescription').value.trim();
         const location = document.getElementById('issueLocation').value.trim();
         const urgency = document.getElementById('issueUrgency').value;
+        
+        console.log('Form data:', { title, description, location, urgency });
         
         // Validation
         if (!title || !description || !location || !urgency) {
@@ -229,6 +266,7 @@ const UserDashboard = {
         
         // Get current user
         const currentUser = App.getCurrentUser();
+        console.log('Current user:', currentUser);
         
         // Create issue
         const issue = DataManager.createIssue({
@@ -241,12 +279,20 @@ const UserDashboard = {
             photos: this.getPhotoPreviews()
         });
         
+        console.log('Issue created:', issue);
+        
         Notifications.success('Issue submitted successfully!');
         
         // Reset form
         e.target.reset();
         document.getElementById('photoPreview').innerHTML = '';
         MapManager.clearCurrentLocation();
+        
+        // Hide location input again
+        const locationInput = document.getElementById('issueLocation');
+        if (locationInput) {
+            locationInput.style.display = 'none';
+        }
         
         // Update stats and reload issues
         this.updateStats();
@@ -262,9 +308,9 @@ const UserDashboard = {
                 ImageProcessor.validateImageFile(file);
                 
                 // Show loading
-                Notifications.info('Processing image for GPS and text extraction...', 'info');
+                Notifications.info('Processing image for GPS extraction...', 'info');
                 
-                // Process image for GPS and OCR
+                // Process image for GPS only
                 const results = await ImageProcessor.processImage(file);
                 
                 // Display image preview
@@ -280,12 +326,6 @@ const UserDashboard = {
                     img.style.border = '2px solid #e0e0e0';
                     img.style.cursor = 'pointer';
                     
-                    // Add click handler to process image
-                    img.addEventListener('click', () => {
-                        this.processImageForLocation(file);
-                        this.processImageForText(file);
-                    });
-                    
                     document.getElementById('photoPreview').appendChild(img);
                 };
                 reader.readAsDataURL(file);
@@ -295,6 +335,7 @@ const UserDashboard = {
                     const locationInput = document.getElementById('issueLocation');
                     if (locationInput) {
                         locationInput.value = `GPS: ${results.gpsData.latitude.toFixed(6)}, ${results.gpsData.longitude.toFixed(6)}`;
+                        locationInput.style.display = 'none'; // Hide location input since GPS found
                     }
                     
                     // Update map
@@ -307,39 +348,61 @@ const UserDashboard = {
                     
                     Notifications.success('GPS location extracted from camera photo!', 'success');
                 } else {
-                    // Clear location if no GPS data
+                    // Show location input and popup message
                     const locationInput = document.getElementById('issueLocation');
-                    if (locationInput && !locationInput.value) {
-                        locationInput.placeholder = 'Enter issue location manually';
-                    }
-                }
-                
-                // Process OCR text ONLY if confident and valid
-                if (results.ocrText && results.ocrText.length > 10) {
-                    const titleInput = document.getElementById('issueTitle');
-                    const descriptionInput = document.getElementById('issueDescription');
-                    
-                    // Only auto-fill if fields are empty
-                    if (titleInput && !titleInput.value) {
-                        const titlePart = results.ocrText.split(' - ')[0] || results.ocrText.split('\n')[0];
-                        if (titlePart && titlePart.length > 5) {
-                            titleInput.value = titlePart;
-                        }
+                    if (locationInput) {
+                        locationInput.style.display = 'block';
+                        locationInput.placeholder = 'Enter issue location manually or use current location';
                     }
                     
-                    if (descriptionInput && !descriptionInput.value) {
-                        descriptionInput.value = results.ocrText;
-                    }
+                    // Show popup message
+                    Notifications.warning('GPS not found in image. Please enter location manually or use current location.', 'warning');
                     
-                    Notifications.success('Text extracted from image!', 'success');
-                } else {
-                    Notifications.info('No readable text found in image. Please enter details manually.', 'info');
+                    // Add current location button
+                    this.addCurrentLocationButton();
                 }
                 
             } catch (error) {
                 Notifications.error(error.message || 'Error processing image');
                 e.target.value = '';
             }
+        }
+    },
+
+    // Add current location button
+    addCurrentLocationButton() {
+        const locationContainer = document.querySelector('.location-input');
+        if (locationContainer && !document.getElementById('currentLocationBtn')) {
+            const currentLocationBtn = document.createElement('button');
+            currentLocationBtn.id = 'currentLocationBtn';
+            currentLocationBtn.type = 'button';
+            currentLocationBtn.className = 'btn-secondary';
+            currentLocationBtn.innerHTML = '<i class="fas fa-location-arrow"></i> Use Current Location';
+            currentLocationBtn.addEventListener('click', () => this.getCurrentLocation());
+            locationContainer.appendChild(currentLocationBtn);
+        }
+    },
+
+    // Get current location
+    async getCurrentLocation() {
+        try {
+            const location = await ImageProcessor.getCurrentLocation();
+            const locationInput = document.getElementById('issueLocation');
+            if (locationInput) {
+                locationInput.value = `Current: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
+            }
+            
+            // Update map
+            if (MapManager.maps.userMap) {
+                MapManager.selectLocation({
+                    lat: location.latitude,
+                    lng: location.longitude
+                });
+            }
+            
+            Notifications.success('Current location obtained!', 'success');
+        } catch (error) {
+            Notifications.error('Unable to get current location. Please enter manually.', 'error');
         }
     },
 

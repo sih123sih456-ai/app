@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GPS Extraction Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin: 30px; }
+    #preview { max-width: 400px; margin-top: 15px; border: 1px solid #ccc; border-radius: 8px; display:none; }
+    #output { margin-top: 20px; padding: 15px; border: 1px dashed #888; min-height: 60px; background:#f9f9f9; white-space: pre-wrap; }
+    button, label.upload-btn {
+      margin: 10px; padding: 10px 20px;
+      border: none; border-radius: 6px;
+      cursor: pointer; font-size: 16px;
+    }
+    label.upload-btn {
+      background: #444; color: white;
+      display: inline-block;
+    }
+    button.find-btn { background: #007BFF; color: white; }
+    a { display:inline-block; margin:5px; padding:8px 16px; border-radius:5px; text-decoration:none; color:white; }
+    .gmap { background:#4285F4; }
+    .osm { background:#6DB65B; }
+  </style>
+</head>
+<body>
+  <h2>Test GPS Extraction (EXIF)</h2>
+
+  <!-- Styled Upload Button -->
+  <label for="imgInput" class="upload-btn">📷 Upload Image</label>
+  <input type="file" id="imgInput" accept="image/*" style="display:none;">
+
+  <br>
+  <img id="preview" alt="Preview">
+
+  <div>
+    <button class="find-btn" onclick="extractGPS()">Find GPS</button>
+  </div>
+
+  <div id="output">Latitude & Longitude will appear here...</div>
+
+  <script>
+    const imgInput = document.getElementById("imgInput");
+    const preview = document.getElementById("preview");
+    const output = document.getElementById("output");
+    let uploadedFile = null;
+
+    imgInput.addEventListener("change", () => {
+      const file = imgInput.files[0];
+      if (file) {
+        uploadedFile = file;
+        preview.src = URL.createObjectURL(file);
+        preview.style.display = "block";
+      }
+    });
+
+    function extractGPS() {
+      if (!uploadedFile) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      output.textContent = "Checking EXIF metadata...";
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          EXIF.getData(img, function() {
+            const lat = EXIF.getTag(this, "GPSLatitude");
+            const lon = EXIF.getTag(this, "GPSLongitude");
+            const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+            const lonRef = EXIF.getTag(this, "GPSLongitudeRef");
+
+            console.log('GPS data from EXIF:', { lat, lon, latRef, lonRef });
+
+            if (lat && lon && latRef && lonRef) {
+              const latDec = convertDMSToDD(lat, latRef);
+              const lonDec = convertDMSToDD(lon, lonRef);
+              showResult(latDec, lonDec);
+            } else {
+              output.textContent = "No EXIF GPS found in this image.";
+            }
+          });
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(uploadedFile);
+    }
+
+    function convertDMSToDD(dms, ref) {
+      const degrees = dms[0].numerator / dms[0].denominator;
+      const minutes = dms[1].numerator / dms[1].denominator;
+      const seconds = dms[2].numerator / dms[2].denominator;
+      let dd = degrees + minutes / 60 + seconds / 3600;
+      if (ref === "S" || ref === "W") dd *= -1;
+      return parseFloat(dd.toFixed(6));
+    }
+
+    function showResult(lat, lon) {
+      output.innerHTML = `
+        <strong>Latitude:</strong> ${lat}<br>
+        <strong>Longitude:</strong> ${lon}<br><br>
+        <a class="gmap" href="https://www.google.com/maps?q=${lat},${lon}" target="_blank">View on Google Maps</a>
+        <a class="osm" href="https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=15" target="_blank">View on OpenStreetMap</a>
+      `;
+    }
+  </script>
+</body>
+</html>

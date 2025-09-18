@@ -3,6 +3,19 @@ const ImageProcessor = {
     // Initialize image processor
     init() {
         console.log('ImageProcessor initialized');
+        this.loadEXIFLibrary();
+    },
+
+    // Load EXIF library dynamically
+    loadEXIFLibrary() {
+        if (typeof EXIF === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/exif-js';
+            script.onload = () => {
+                console.log('EXIF library loaded');
+            };
+            document.head.appendChild(script);
+        }
     },
 
     // Process uploaded image for GPS and OCR
@@ -22,10 +35,6 @@ const ImageProcessor = {
             // Extract GPS data from EXIF
             const gpsData = await this.extractGPSData(file);
             results.gpsData = gpsData;
-
-            // Extract text using OCR
-            const ocrText = await this.extractTextFromImage(imageData);
-            results.ocrText = ocrText;
 
             return results;
         } catch (error) {
@@ -52,112 +61,65 @@ const ImageProcessor = {
     // Extract GPS data from EXIF (only from photos taken with GPS camera)
     async extractGPSData(file) {
         try {
-            // Only try to extract GPS from EXIF data
-            // Don't use browser location as fallback - let user enter manually
-            const arrayBuffer = await file.arrayBuffer();
-            const exifData = this.parseEXIF(arrayBuffer);
-            
-            if (exifData && exifData.GPS) {
-                const gps = exifData.GPS;
-                
-                // Validate GPS data exists and is reasonable
-                if (gps.GPSLatitude && gps.GPSLongitude && 
-                    gps.GPSLatitudeRef && gps.GPSLongitudeRef) {
-                    
-                    const lat = this.convertDMSToDD(gps.GPSLatitude, gps.GPSLatitudeRef);
-                    const lng = this.convertDMSToDD(gps.GPSLongitude, gps.GPSLongitudeRef);
-                    
-                    // Validate coordinates are within reasonable bounds
-                    if (lat && lng && 
-                        lat >= -90 && lat <= 90 && 
-                        lng >= -180 && lng <= 180) {
-                        
-                        return {
-                            latitude: lat,
-                            longitude: lng,
-                            altitude: gps.GPSAltitude || null,
-                            timestamp: gps.GPSTimeStamp || null,
-                            accuracy: 'GPS Camera',
-                            source: 'EXIF'
-                        };
-                    }
-                }
-            }
-            
-            // No GPS data found - return null (user will enter manually)
-            return null;
+            console.log('Starting GPS extraction for file:', file.name);
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        console.log('Image loaded, checking for EXIF library...');
+                        if (typeof EXIF !== 'undefined') {
+                            console.log('EXIF library found, extracting GPS data...');
+                            EXIF.getData(img, function() {
+                                const lat = EXIF.getTag(this, "GPSLatitude");
+                                const lon = EXIF.getTag(this, "GPSLongitude");
+                                const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+                                const lonRef = EXIF.getTag(this, "GPSLongitudeRef");
+
+                                console.log('GPS data from EXIF:', { lat, lon, latRef, lonRef });
+
+                                if (lat && lon && latRef && lonRef) {
+                                    const latDec = ImageProcessor.convertDMSToDD(lat, latRef);
+                                    const lonDec = ImageProcessor.convertDMSToDD(lon, lonRef);
+                                    
+                                    console.log('Converted coordinates:', { latDec, lonDec });
+                                    
+                                    // Validate coordinates are within reasonable bounds
+                                    if (latDec && lonDec && 
+                                        latDec >= -90 && latDec <= 90 && 
+                                        lonDec >= -180 && lonDec <= 180) {
+                                        
+                                        console.log('Valid GPS coordinates found!');
+                                        resolve({
+                                            latitude: latDec,
+                                            longitude: lonDec,
+                                            accuracy: 'GPS Camera',
+                                            source: 'EXIF'
+                                        });
+                                    } else {
+                                        console.log('Invalid GPS coordinates');
+                                        resolve(null);
+                                    }
+                                } else {
+                                    console.log('No GPS data found in EXIF');
+                                    resolve(null);
+                                }
+                            });
+                        } else {
+                            console.log('EXIF library not available');
+                            resolve(null);
+                        }
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
         } catch (error) {
             console.warn('GPS extraction failed:', error);
             return null;
         }
     },
 
-    // Parse EXIF data (simplified implementation)
-    parseEXIF(arrayBuffer) {
-        // This is a simplified EXIF parser
-        // In production, use a proper EXIF library
-        try {
-            const dataView = new DataView(arrayBuffer);
-            
-            // Check for EXIF marker
-            if (dataView.getUint16(0) !== 0xFFD8) {
-                return null;
-            }
-            
-            // Look for EXIF APP1 marker
-            let offset = 2;
-            while (offset < dataView.byteLength) {
-                const marker = dataView.getUint16(offset);
-                if (marker === 0xFFE1) {
-                    // Found EXIF APP1 marker
-                    const exifLength = dataView.getUint16(offset + 2);
-                    const exifData = this.parseEXIFData(dataView, offset + 4, exifLength - 2);
-                    return exifData;
-                }
-                offset += 2 + dataView.getUint16(offset + 2);
-            }
-            
-            return null;
-        } catch (error) {
-            console.warn('EXIF parsing failed:', error);
-            return null;
-        }
-    },
-
-    // Parse EXIF data (simplified)
-    parseEXIFData(dataView, offset, length) {
-        // This is a very simplified EXIF parser
-        // In production, use a proper library like exif-js
-        try {
-            // Check for EXIF header
-            const exifHeader = String.fromCharCode(
-                dataView.getUint8(offset),
-                dataView.getUint8(offset + 1),
-                dataView.getUint8(offset + 2),
-                dataView.getUint8(offset + 3)
-            );
-            
-            if (exifHeader !== 'Exif') {
-                return null;
-            }
-            
-            // For demo purposes, return mock GPS data
-            // In production, properly parse the EXIF structure
-            return {
-                GPS: {
-                    GPSLatitude: [40, 42, 46.08], // Mock data
-                    GPSLatitudeRef: 'N',
-                    GPSLongitude: [74, 0, 21.6],
-                    GPSLongitudeRef: 'W',
-                    GPSAltitude: 10.5,
-                    GPSTimeStamp: new Date().toISOString()
-                }
-            };
-        } catch (error) {
-            console.warn('EXIF data parsing failed:', error);
-            return null;
-        }
-    },
 
     // Convert DMS to Decimal Degrees
     convertDMSToDD(dms, ref) {
@@ -165,131 +127,14 @@ const ImageProcessor = {
             return null;
         }
         
-        const degrees = dms[0];
-        const minutes = dms[1];
-        const seconds = dms[2];
-        
+        const degrees = dms[0].numerator / dms[0].denominator;
+        const minutes = dms[1].numerator / dms[1].denominator;
+        const seconds = dms[2].numerator / dms[2].denominator;
         let dd = degrees + minutes / 60 + seconds / 3600;
-        
-        if (ref === 'S' || ref === 'W') {
-            dd = dd * -1;
-        }
-        
-        return dd;
+        if (ref === "S" || ref === "W") dd *= -1;
+        return parseFloat(dd.toFixed(6));
     },
 
-    // Extract text from image using OCR (only when confident)
-    async extractTextFromImage(imageData) {
-        try {
-            // For OCR, we'll use a simplified approach
-            // In production, you'd use Tesseract.js or a cloud OCR service
-            
-            // Create a canvas to process the image
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            
-            return new Promise((resolve) => {
-                img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    
-                    // Analyze image to determine if it contains readable text
-                    const hasText = this.detectTextInImage(canvas);
-                    
-                    if (hasText) {
-                        // For demo purposes, return mock OCR text
-                        // In production, use Tesseract.js:
-                        // const { data: { text, confidence } } = await Tesseract.recognize(canvas, 'eng');
-                        // if (confidence > 80) resolve(text);
-                        
-                        const mockText = this.generateMockOCRText();
-                        
-                        // Only return text if it looks like a valid issue description
-                        if (this.isValidIssueText(mockText)) {
-                            resolve(mockText);
-                        } else {
-                            resolve(null);
-                        }
-                    } else {
-                        resolve(null);
-                    }
-                };
-                
-                img.src = imageData;
-            });
-        } catch (error) {
-            console.warn('OCR extraction failed:', error);
-            return null;
-        }
-    },
-
-    // Generate mock OCR text for demo
-    generateMockOCRText() {
-        const mockTexts = [
-            "Street Light Not Working - Main Street",
-            "Pothole on Oak Avenue - Needs Repair",
-            "Garbage Collection Missed - Park Lane",
-            "Water Leak - Corner of 5th and Main",
-            "Broken Sidewalk - Near City Hall",
-            "Traffic Signal Malfunction - Highway 101",
-            "Street Sign Damaged - Elm Street",
-            "Drainage Problem - Flooded Area"
-        ];
-        
-        return mockTexts[Math.floor(Math.random() * mockTexts.length)];
-    },
-
-    // Detect if image contains text (simplified)
-    detectTextInImage(canvas) {
-        try {
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            // Simple edge detection to find text-like patterns
-            let edgeCount = 0;
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const brightness = (r + g + b) / 3;
-                
-                // Count pixels that could be text edges
-                if (brightness < 50 || brightness > 200) {
-                    edgeCount++;
-                }
-            }
-            
-            // If there are enough edge pixels, assume text might be present
-            const edgeRatio = edgeCount / (data.length / 4);
-            return edgeRatio > 0.1; // 10% edge pixels threshold
-        } catch (error) {
-            console.warn('Text detection failed:', error);
-            return false;
-        }
-    },
-
-    // Validate if extracted text looks like a valid issue description
-    isValidIssueText(text) {
-        if (!text || text.length < 10) return false;
-        
-        // Check for common issue-related keywords
-        const issueKeywords = [
-            'street', 'road', 'light', 'pothole', 'garbage', 'water', 'leak',
-            'broken', 'damaged', 'repair', 'fix', 'problem', 'issue', 'not working',
-            'malfunction', 'drainage', 'sidewalk', 'traffic', 'signal', 'sign'
-        ];
-        
-        const lowerText = text.toLowerCase();
-        const keywordCount = issueKeywords.filter(keyword => 
-            lowerText.includes(keyword)
-        ).length;
-        
-        // Must contain at least 2 issue-related keywords
-        return keywordCount >= 2;
-    },
 
     // Get current location from browser
     async getCurrentLocation() {
@@ -320,81 +165,6 @@ const ImageProcessor = {
                 }
             );
         });
-    },
-
-    // Process image and update location if GPS data found
-    async processImageForLocation(file) {
-        try {
-            const results = await this.processImage(file);
-            
-            if (results.gpsData) {
-                // Update location input with GPS coordinates
-                const locationInput = document.getElementById('issueLocation');
-                if (locationInput) {
-                    locationInput.value = `${results.gpsData.latitude.toFixed(6)}, ${results.gpsData.longitude.toFixed(6)}`;
-                }
-                
-                // Update map if available
-                if (MapManager.maps.userMap) {
-                    MapManager.selectLocation({
-                        lat: results.gpsData.latitude,
-                        lng: results.gpsData.longitude
-                    });
-                }
-                
-                Notifications.success('GPS location extracted from image!', 'success');
-                return results.gpsData;
-            } else {
-                // Try to get current location as fallback
-                try {
-                    const currentLocation = await this.getCurrentLocation();
-                    const locationInput = document.getElementById('issueLocation');
-                    if (locationInput) {
-                        locationInput.value = `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}`;
-                    }
-                    Notifications.info('Using current location as fallback', 'info');
-                    return currentLocation;
-                } catch (error) {
-                    Notifications.warning('No GPS data found in image and current location unavailable', 'warning');
-                    return null;
-                }
-            }
-        } catch (error) {
-            console.error('Error processing image for location:', error);
-            Notifications.error('Error processing image for location', 'error');
-            return null;
-        }
-    },
-
-    // Extract text and suggest title/description
-    async processImageForText(file) {
-        try {
-            const results = await this.processImage(file);
-            
-            if (results.ocrText) {
-                // Suggest title and description based on OCR text
-                const titleInput = document.getElementById('issueTitle');
-                const descriptionInput = document.getElementById('issueDescription');
-                
-                if (titleInput && results.ocrText.length > 0) {
-                    titleInput.value = results.ocrText;
-                }
-                
-                if (descriptionInput && results.ocrText.length > 0) {
-                    descriptionInput.value = `Issue identified from image: ${results.ocrText}`;
-                }
-                
-                Notifications.success('Text extracted from image!', 'success');
-                return results.ocrText;
-            } else {
-                Notifications.info('No text found in image', 'info');
-                return null;
-            }
-        } catch (error) {
-            console.error('Error processing image for text:', error);
-            Notifications.error('Error processing image for text', 'error');
-            return null;
-        }
     },
 
     // Validate image file
