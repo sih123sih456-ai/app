@@ -49,44 +49,42 @@ const ImageProcessor = {
         });
     },
 
-    // Extract GPS data from EXIF
+    // Extract GPS data from EXIF (only from photos taken with GPS camera)
     async extractGPSData(file) {
         try {
-            // Try to get current location first as fallback
-            const currentLocation = await this.getCurrentLocation();
-            
-            // For GPS extraction, we'll use a simplified approach
-            // In a real application, you'd use a library like exif-js or piexifjs
+            // Only try to extract GPS from EXIF data
+            // Don't use browser location as fallback - let user enter manually
             const arrayBuffer = await file.arrayBuffer();
             const exifData = this.parseEXIF(arrayBuffer);
             
             if (exifData && exifData.GPS) {
                 const gps = exifData.GPS;
-                const lat = this.convertDMSToDD(gps.GPSLatitude, gps.GPSLatitudeRef);
-                const lng = this.convertDMSToDD(gps.GPSLongitude, gps.GPSLongitudeRef);
                 
-                if (lat && lng) {
-                    return {
-                        latitude: lat,
-                        longitude: lng,
-                        altitude: gps.GPSAltitude || null,
-                        timestamp: gps.GPSTimeStamp || null,
-                        accuracy: 'GPS'
-                    };
+                // Validate GPS data exists and is reasonable
+                if (gps.GPSLatitude && gps.GPSLongitude && 
+                    gps.GPSLatitudeRef && gps.GPSLongitudeRef) {
+                    
+                    const lat = this.convertDMSToDD(gps.GPSLatitude, gps.GPSLatitudeRef);
+                    const lng = this.convertDMSToDD(gps.GPSLongitude, gps.GPSLongitudeRef);
+                    
+                    // Validate coordinates are within reasonable bounds
+                    if (lat && lng && 
+                        lat >= -90 && lat <= 90 && 
+                        lng >= -180 && lng <= 180) {
+                        
+                        return {
+                            latitude: lat,
+                            longitude: lng,
+                            altitude: gps.GPSAltitude || null,
+                            timestamp: gps.GPSTimeStamp || null,
+                            accuracy: 'GPS Camera',
+                            source: 'EXIF'
+                        };
+                    }
                 }
             }
             
-            // Return current location as fallback if GPS data not found
-            if (currentLocation) {
-                return {
-                    latitude: currentLocation.latitude,
-                    longitude: currentLocation.longitude,
-                    altitude: currentLocation.altitude,
-                    timestamp: new Date().toISOString(),
-                    accuracy: 'Browser GPS (Fallback)'
-                };
-            }
-            
+            // No GPS data found - return null (user will enter manually)
             return null;
         } catch (error) {
             console.warn('GPS extraction failed:', error);
@@ -180,7 +178,7 @@ const ImageProcessor = {
         return dd;
     },
 
-    // Extract text from image using OCR
+    // Extract text from image using OCR (only when confident)
     async extractTextFromImage(imageData) {
         try {
             // For OCR, we'll use a simplified approach
@@ -197,13 +195,26 @@ const ImageProcessor = {
                     canvas.height = img.height;
                     ctx.drawImage(img, 0, 0);
                     
-                    // For demo purposes, return mock OCR text
-                    // In production, use Tesseract.js:
-                    // const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-                    // resolve(text);
+                    // Analyze image to determine if it contains readable text
+                    const hasText = this.detectTextInImage(canvas);
                     
-                    const mockText = this.generateMockOCRText();
-                    resolve(mockText);
+                    if (hasText) {
+                        // For demo purposes, return mock OCR text
+                        // In production, use Tesseract.js:
+                        // const { data: { text, confidence } } = await Tesseract.recognize(canvas, 'eng');
+                        // if (confidence > 80) resolve(text);
+                        
+                        const mockText = this.generateMockOCRText();
+                        
+                        // Only return text if it looks like a valid issue description
+                        if (this.isValidIssueText(mockText)) {
+                            resolve(mockText);
+                        } else {
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
                 };
                 
                 img.src = imageData;
@@ -228,6 +239,56 @@ const ImageProcessor = {
         ];
         
         return mockTexts[Math.floor(Math.random() * mockTexts.length)];
+    },
+
+    // Detect if image contains text (simplified)
+    detectTextInImage(canvas) {
+        try {
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // Simple edge detection to find text-like patterns
+            let edgeCount = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const brightness = (r + g + b) / 3;
+                
+                // Count pixels that could be text edges
+                if (brightness < 50 || brightness > 200) {
+                    edgeCount++;
+                }
+            }
+            
+            // If there are enough edge pixels, assume text might be present
+            const edgeRatio = edgeCount / (data.length / 4);
+            return edgeRatio > 0.1; // 10% edge pixels threshold
+        } catch (error) {
+            console.warn('Text detection failed:', error);
+            return false;
+        }
+    },
+
+    // Validate if extracted text looks like a valid issue description
+    isValidIssueText(text) {
+        if (!text || text.length < 10) return false;
+        
+        // Check for common issue-related keywords
+        const issueKeywords = [
+            'street', 'road', 'light', 'pothole', 'garbage', 'water', 'leak',
+            'broken', 'damaged', 'repair', 'fix', 'problem', 'issue', 'not working',
+            'malfunction', 'drainage', 'sidewalk', 'traffic', 'signal', 'sign'
+        ];
+        
+        const lowerText = text.toLowerCase();
+        const keywordCount = issueKeywords.filter(keyword => 
+            lowerText.includes(keyword)
+        ).length;
+        
+        // Must contain at least 2 issue-related keywords
+        return keywordCount >= 2;
     },
 
     // Get current location from browser

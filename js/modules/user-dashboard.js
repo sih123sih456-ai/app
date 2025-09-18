@@ -271,11 +271,11 @@ const UserDashboard = {
                 };
                 reader.readAsDataURL(file);
                 
-                // Process GPS data
-                if (results.gpsData) {
+                // Process GPS data ONLY if from GPS camera
+                if (results.gpsData && results.gpsData.source === 'EXIF') {
                     const locationInput = document.getElementById('issueLocation');
                     if (locationInput) {
-                        locationInput.value = `${results.gpsData.latitude.toFixed(6)}, ${results.gpsData.longitude.toFixed(6)}`;
+                        locationInput.value = `GPS: ${results.gpsData.latitude.toFixed(6)}, ${results.gpsData.longitude.toFixed(6)}`;
                     }
                     
                     // Update map
@@ -286,23 +286,35 @@ const UserDashboard = {
                         });
                     }
                     
-                    Notifications.success('GPS location extracted from image!', 'success');
+                    Notifications.success('GPS location extracted from camera photo!', 'success');
+                } else {
+                    // Clear location if no GPS data
+                    const locationInput = document.getElementById('issueLocation');
+                    if (locationInput && !locationInput.value) {
+                        locationInput.placeholder = 'Enter issue location manually';
+                    }
                 }
                 
-                // Process OCR text
-                if (results.ocrText) {
+                // Process OCR text ONLY if confident and valid
+                if (results.ocrText && results.ocrText.length > 10) {
                     const titleInput = document.getElementById('issueTitle');
                     const descriptionInput = document.getElementById('issueDescription');
                     
-                    if (titleInput && results.ocrText.length > 0) {
-                        titleInput.value = results.ocrText;
+                    // Only auto-fill if fields are empty
+                    if (titleInput && !titleInput.value) {
+                        const titlePart = results.ocrText.split(' - ')[0] || results.ocrText.split('\n')[0];
+                        if (titlePart && titlePart.length > 5) {
+                            titleInput.value = titlePart;
+                        }
                     }
                     
-                    if (descriptionInput && results.ocrText.length > 0) {
-                        descriptionInput.value = `Issue identified from image: ${results.ocrText}`;
+                    if (descriptionInput && !descriptionInput.value) {
+                        descriptionInput.value = results.ocrText;
                     }
                     
                     Notifications.success('Text extracted from image!', 'success');
+                } else {
+                    Notifications.info('No readable text found in image. Please enter details manually.', 'info');
                 }
                 
             } catch (error) {

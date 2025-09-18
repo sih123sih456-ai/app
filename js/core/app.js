@@ -197,8 +197,10 @@ const App = {
         } catch (error) {
             console.error('Login error:', error);
             Notifications.error('Login failed. Please try again.');
-            // Reset to login page
-            this.logout();
+            // Don't call logout() as it shows "Logged out successfully"
+            // Just reset the state without showing logout message
+            this.currentUser = null;
+            this.currentRole = null;
         }
     },
 
