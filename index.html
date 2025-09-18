@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-translate="civic_issue_reporter">Civic Issue Reporting System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="page active">
+        <div class="login-container">
+            <div class="login-header">
+                <h1><i class="fas fa-city"></i> <span data-translate="civic_issue_reporter">Civic Issue Reporter</span></h1>
+                <p data-translate="report_track_issues">Report and track civic issues in your community</p>
+                <div class="language-toggle">
+                    <button id="languageToggle" class="btn-language">
+                        <i class="fas fa-globe"></i> 
+                        <span id="currentLang">English</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="login-form-container">
+                <div class="role-toggle">
+                    <button id="userToggle" class="toggle-btn active" data-translate="citizen">Citizen</button>
+                    <button id="adminToggle" class="toggle-btn" data-translate="admin_officer">Admin/Officer</button>
+                </div>
+
+                <!-- User Login/Register -->
+                <div id="userAuth" class="auth-form active">
+                    <div class="form-tabs">
+                        <button id="userLoginTab" class="tab-btn active">Login</button>
+                        <button id="userRegisterTab" class="tab-btn">Register</button>
+                    </div>
+                    
+                    <form id="userLoginForm" class="auth-form-content active">
+                        <div class="form-group">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="userEmail" placeholder="Email" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="userPassword" placeholder="Password" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Login as Citizen</button>
+                    </form>
+
+                    <form id="userRegisterForm" class="auth-form-content">
+                        <div class="form-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="userName" placeholder="Full Name" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="userRegEmail" placeholder="Email" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="userRegPassword" placeholder="Password" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-phone"></i>
+                            <input type="tel" id="userPhone" placeholder="Phone Number" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Register as Citizen</button>
+                    </form>
+                </div>
+
+                <!-- Admin Login/Access Request -->
+                <div id="adminAuth" class="auth-form">
+                    <div class="form-tabs">
+                        <button id="adminLoginTab" class="tab-btn active">Login</button>
+                        <button id="adminRequestTab" class="tab-btn">Access Request</button>
+                    </div>
+                    
+                    <form id="adminLoginForm" class="auth-form-content active">
+                        <div class="form-group">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="adminEmail" placeholder="Email" value="admin@gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="adminPassword" placeholder="Password" value="admin123">
+                        </div>
+                        <button type="submit" class="btn-primary">Login as Admin</button>
+                    </form>
+
+                    <form id="adminRequestForm" class="auth-form-content">
+                        <div class="form-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="adminName" placeholder="Full Name" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="adminRegEmail" placeholder="Email" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-building"></i>
+                            <input type="text" id="adminDept" placeholder="Department" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-phone"></i>
+                            <input type="tel" id="adminPhone" placeholder="Phone Number" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <input type="text" id="adminLocation" placeholder="Location" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-briefcase"></i>
+                            <input type="text" id="adminExperience" placeholder="Years of Experience" required>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-file-alt"></i>
+                            <textarea id="adminReason" placeholder="Reason for Access Request" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <i class="fas fa-image"></i>
+                            <input type="file" id="adminProfileImage" accept="image/*" required>
+                            <label for="adminProfileImage" class="file-label">Upload Profile Image</label>
+                        </div>
+                        <button type="submit" class="btn-primary">Submit Access Request</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Dashboard -->
+    <div id="userDashboard" class="page">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="hamburger-btn" id="userHamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <h1><i class="fas fa-city"></i> <span data-translate="citizen_dashboard">Citizen Dashboard</span></h1>
+                </div>
+                <div class="user-info">
+                    <span id="userWelcome"></span>
+                    <button id="userLogout" class="btn-secondary" data-translate="logout">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <div class="dashboard-sidebar">
+                <nav class="sidebar-nav">
+                    <button class="nav-btn active" data-section="overview">
+                        <i class="fas fa-tachometer-alt"></i> Overview
+                    </button>
+                    <button class="nav-btn" data-section="submit">
+                        <i class="fas fa-plus-circle"></i> Submit Issue
+                    </button>
+                    <button class="nav-btn" data-section="track">
+                        <i class="fas fa-list"></i> Track Issues
+                    </button>
+                    <button class="nav-btn" data-section="chatbot">
+                        <i class="fas fa-robot"></i> Help & Support
+                    </button>
+                </nav>
+            </div>
+
+            <div class="dashboard-main">
+                <!-- Overview Section -->
+                <div id="overview" class="dashboard-section active">
+                    <h2>Dashboard Overview</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3 id="userPendingCount">0</h3>
+                            <p>Pending Issues</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-eye"></i>
+                            <h3 id="userReviewCount">0</h3>
+                            <p>In Review</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-check-circle"></i>
+                            <h3 id="userResolvedCount">0</h3>
+                            <p>Resolved</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Issue Section -->
+                <div id="submit" class="dashboard-section">
+                    <h2>Submit New Issue</h2>
+                    <form id="issueForm" class="issue-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="issueTitle">Issue Title *</label>
+                                <input type="text" id="issueTitle" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="issueUrgency">Urgency Level *</label>
+                                <select id="issueUrgency" required>
+                                    <option value="">Select Urgency</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="issueDescription">Description *</label>
+                            <textarea id="issueDescription" rows="4" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="issueLocation">Location *</label>
+                            <div class="location-input">
+                                <input type="text" id="issueLocation" placeholder="Enter location or click on map" required>
+                                <button type="button" id="selectLocationBtn" class="btn-secondary">
+                                    <i class="fas fa-map-marker-alt"></i> Select on Map
+                                </button>
+                            </div>
+                            <div id="mapContainer" class="map-container"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="issuePhoto">Photo Evidence</label>
+                            <input type="file" id="issuePhoto" accept="image/*">
+                            <div id="photoPreview" class="photo-preview"></div>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Submit Issue</button>
+                    </form>
+                </div>
+
+                <!-- Track Issues Section -->
+                <div id="track" class="dashboard-section">
+                    <h2>Track Your Issues</h2>
+                    <div class="filter-controls">
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="in-review">In Review</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div id="userIssuesList" class="issues-list"></div>
+                </div>
+
+                <!-- Chatbot Section -->
+                <div id="chatbot" class="dashboard-section">
+                    <h2>Help & Support</h2>
+                    <div class="chatbot-container">
+                        <div class="chatbot-messages" id="chatbotMessages"></div>
+                        <div class="chatbot-input">
+                            <input type="text" id="chatbotInput" placeholder="Ask a question...">
+                            <button id="chatbotSend" class="btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="page">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="hamburger-btn" id="adminHamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <h1><i class="fas fa-shield-alt"></i> <span data-translate="admin_dashboard">Admin Dashboard</span></h1>
+                </div>
+                <div class="user-info">
+                    <span id="adminWelcome"></span>
+                    <button id="adminLogout" class="btn-secondary" data-translate="logout">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <div class="dashboard-sidebar">
+                <nav class="sidebar-nav">
+                    <button class="nav-btn active" data-section="admin-overview">
+                        <i class="fas fa-tachometer-alt"></i> Overview
+                    </button>
+                    <button class="nav-btn" data-section="admin-issues">
+                        <i class="fas fa-list"></i> All Issues
+                    </button>
+                    <button class="nav-btn" data-section="admin-requests">
+                        <i class="fas fa-user-plus"></i> Access Requests
+                    </button>
+                    <button class="nav-btn" data-section="admin-map">
+                        <i class="fas fa-map"></i> Issue Map
+                    </button>
+                    <button class="nav-btn" data-section="admin-admins">
+                        <i class="fas fa-users-cog"></i> Admin Details
+                    </button>
+                </nav>
+            </div>
+
+            <div class="dashboard-main">
+                <!-- Admin Overview -->
+                <div id="admin-overview" class="dashboard-section active">
+                    <h2>Admin Overview</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3 id="adminPendingCount">0</h3>
+                            <p>Pending Issues</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-eye"></i>
+                            <h3 id="adminReviewCount">0</h3>
+                            <p>In Review</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-check-circle"></i>
+                            <h3 id="adminResolvedCount">0</h3>
+                            <p>Resolved</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-user-plus"></i>
+                            <h3 id="adminRequestCount">0</h3>
+                            <p>Access Requests</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Issues -->
+                <div id="admin-issues" class="dashboard-section">
+                    <h2>All Issues</h2>
+                    <div class="filter-controls">
+                        <select id="adminStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="in-review">In Review</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                        <select id="adminUrgencyFilter">
+                            <option value="">All Urgency</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div id="adminIssuesList" class="issues-list"></div>
+                </div>
+
+                <!-- Access Requests -->
+                <div id="admin-requests" class="dashboard-section">
+                    <h2>Access Requests</h2>
+                    <div id="accessRequestsList" class="requests-list"></div>
+                </div>
+
+                <!-- Issue Map -->
+                <div id="admin-map" class="dashboard-section">
+                    <h2 data-translate="issue_map">Issue Map</h2>
+                    <div id="adminMapContainer" class="map-container large"></div>
+                </div>
+
+                <!-- Admin Details -->
+                <div id="admin-admins" class="dashboard-section">
+                    <h2 data-translate="admin_details">Admin Details</h2>
+                    <div id="adminDetailsList" class="admin-details-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Officer Dashboard -->
+    <div id="officerDashboard" class="page">
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="hamburger-btn" id="officerHamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <h1><i class="fas fa-user-shield"></i> <span data-translate="officer_dashboard">Officer Dashboard</span></h1>
+                </div>
+                <div class="user-info">
+                    <span id="officerWelcome"></span>
+                    <button id="officerLogout" class="btn-secondary" data-translate="logout">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <div class="dashboard-sidebar">
+                <nav class="sidebar-nav">
+                    <button class="nav-btn active" data-section="officer-overview">
+                        <i class="fas fa-tachometer-alt"></i> Overview
+                    </button>
+                    <button class="nav-btn" data-section="officer-assigned">
+                        <i class="fas fa-tasks"></i> Assigned Issues
+                    </button>
+                    <button class="nav-btn" data-section="officer-map">
+                        <i class="fas fa-map"></i> Issue Map
+                    </button>
+                </nav>
+            </div>
+
+            <div class="dashboard-main">
+                <!-- Officer Overview -->
+                <div id="officer-overview" class="dashboard-section active">
+                    <h2>Officer Overview</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <i class="fas fa-tasks"></i>
+                            <h3 id="officerAssignedCount">0</h3>
+                            <p>Assigned Issues</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-play"></i>
+                            <h3 id="officerProgressCount">0</h3>
+                            <p>In Progress</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-check-circle"></i>
+                            <h3 id="officerResolvedCount">0</h3>
+                            <p>Resolved</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assigned Issues -->
+                <div id="officer-assigned" class="dashboard-section">
+                    <h2>Assigned Issues</h2>
+                    <div id="officerIssuesList" class="issues-list"></div>
+                </div>
+
+                <!-- Officer Map -->
+                <div id="officer-map" class="dashboard-section">
+                    <h2>Assigned Issues Map</h2>
+                    <div id="officerMapContainer" class="map-container large"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Modal for Issue Details -->
+    <div id="issueModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="issueModalContent"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Configuration -->
+    <script src="js/config.js"></script>
+    
+    <!-- Core Modules -->
+    <script src="js/core/app.js"></script>
+    <script src="js/core/utils.js"></script>
+    <script src="js/core/data.js"></script>
+    
+    <!-- Feature Modules -->
+    <script src="js/modules/language.js"></script>
+    <script src="js/modules/image-processor.js"></script>
+    <script src="js/modules/hamburger-menu.js"></script>
+    <script src="js/modules/login.js"></script>
+    <script src="js/modules/user-dashboard.js"></script>
+    <script src="js/modules/admin-dashboard.js"></script>
+    <script src="js/modules/admin-requests.js"></script>
+    <script src="js/modules/officer-dashboard.js"></script>
+    <script src="js/modules/chatbot.js"></script>
+    <script src="js/modules/maps.js"></script>
+    <script src="js/modules/notifications.js"></script>
+    
+    <!-- Initialize App -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            App.init();
+        });
+    </script>
+</body>
+</html>
