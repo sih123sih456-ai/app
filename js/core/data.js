@@ -62,51 +62,83 @@ const DataManager = {
 
     // Load sample data
     loadSampleData() {
-        this.issues = [
+        // Start with empty arrays - no static data
+        this.issues = [];
+        this.accessRequests = [];
+        this.notifications = [];
+        
+        // Only add sample users and officers for testing
+        this.users = [
             {
                 id: 1,
-                title: "Pothole on Main Street",
-                description: "Large pothole causing traffic issues and vehicle damage",
-                location: "Main Street, Downtown",
-                coordinates: [40.7128, -74.0060],
-                urgency: "high",
-                status: "pending",
-                submittedBy: "john@example.com",
-                submittedDate: new Date().toISOString(),
-                photos: [],
-                assignedTo: null,
-                escalationLevel: "Block",
-                department: "Public Works"
+                name: "John Doe",
+                email: "john@example.com",
+                phone: "+1-555-0123",
+                role: "user",
+                registeredDate: new Date().toISOString()
             },
             {
                 id: 2,
-                title: "Broken Street Light",
-                description: "Street light not working for the past week",
-                location: "Oak Avenue, Residential Area",
-                coordinates: [40.7589, -73.9851],
-                urgency: "medium",
-                status: "in-review",
-                submittedBy: "jane@example.com",
-                submittedDate: new Date(Date.now() - 86400000).toISOString(),
-                photos: [],
-                assignedTo: "officer1@example.com",
-                escalationLevel: "Block",
-                department: "Public Works"
+                name: "Jane Smith",
+                email: "jane@example.com",
+                phone: "+1-555-0124",
+                role: "user",
+                registeredDate: new Date().toISOString()
+            }
+        ];
+        
+        this.officers = [
+            {
+                id: 1,
+                name: "Officer Mike Johnson",
+                email: "officer1@example.com",
+                phone: "+1-555-0201",
+                department: "Public Works",
+                specialization: "Road Maintenance",
+                availability: "available",
+                currentIssues: 0,
+                maxIssues: 5,
+                rating: 4.8,
+                experience: "5 years"
+            },
+            {
+                id: 2,
+                name: "Officer Sarah Wilson",
+                email: "officer2@example.com",
+                phone: "+1-555-0202",
+                department: "Environmental Services",
+                specialization: "Waste Management",
+                availability: "available",
+                currentIssues: 1,
+                maxIssues: 4,
+                rating: 4.6,
+                experience: "3 years"
             },
             {
                 id: 3,
-                title: "Garbage Collection Issue",
-                description: "Garbage not collected for 3 days",
-                location: "Park Lane, Suburb",
-                coordinates: [40.7505, -73.9934],
-                urgency: "low",
-                status: "resolved",
-                submittedBy: "bob@example.com",
-                submittedDate: new Date(Date.now() - 172800000).toISOString(),
-                photos: [],
-                assignedTo: "officer2@example.com",
-                escalationLevel: "Block",
-                department: "Environmental Services"
+                name: "Officer David Brown",
+                email: "officer3@example.com",
+                phone: "+1-555-0203",
+                department: "Public Works",
+                specialization: "Street Lighting",
+                availability: "busy",
+                currentIssues: 4,
+                maxIssues: 5,
+                rating: 4.9,
+                experience: "7 years"
+            },
+            {
+                id: 4,
+                name: "Officer Lisa Davis",
+                email: "officer4@example.com",
+                phone: "+1-555-0204",
+                department: "Transportation",
+                specialization: "Traffic Management",
+                availability: "available",
+                currentIssues: 2,
+                maxIssues: 6,
+                rating: 4.7,
+                experience: "4 years"
             }
         ];
 
