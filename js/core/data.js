@@ -4,11 +4,60 @@ const DataManager = {
     accessRequests: [],
     users: [],
     officers: [],
+    notifications: [],
 
     // Initialize with sample data
     init() {
-        this.loadSampleData();
+        this.loadFromStorage();
+        if (this.issues.length === 0) {
+            this.loadSampleData();
+        }
         console.log('DataManager initialized');
+    },
+
+    // Load data from localStorage
+    loadFromStorage() {
+        try {
+            const storedIssues = localStorage.getItem('civicIssues');
+            if (storedIssues) {
+                this.issues = JSON.parse(storedIssues);
+            }
+
+            const storedRequests = localStorage.getItem('civicAccessRequests');
+            if (storedRequests) {
+                this.accessRequests = JSON.parse(storedRequests);
+            }
+
+            const storedUsers = localStorage.getItem('civicUsers');
+            if (storedUsers) {
+                this.users = JSON.parse(storedUsers);
+            }
+
+            const storedOfficers = localStorage.getItem('civicOfficers');
+            if (storedOfficers) {
+                this.officers = JSON.parse(storedOfficers);
+            }
+
+            const storedNotifications = localStorage.getItem('civicNotifications');
+            if (storedNotifications) {
+                this.notifications = JSON.parse(storedNotifications);
+            }
+        } catch (error) {
+            console.error('Error loading from storage:', error);
+        }
+    },
+
+    // Save data to localStorage
+    saveToStorage() {
+        try {
+            localStorage.setItem('civicIssues', JSON.stringify(this.issues));
+            localStorage.setItem('civicAccessRequests', JSON.stringify(this.accessRequests));
+            localStorage.setItem('civicUsers', JSON.stringify(this.users));
+            localStorage.setItem('civicOfficers', JSON.stringify(this.officers));
+            localStorage.setItem('civicNotifications', JSON.stringify(this.notifications));
+        } catch (error) {
+            console.error('Error saving to storage:', error);
+        }
     },
 
     // Load sample data
@@ -145,9 +194,31 @@ const DataManager = {
             submittedDate: new Date().toISOString(),
             status: 'pending',
             escalationLevel: 'Block',
-            department: issueData.department || this.determineDepartment(issueData)
+            department: issueData.department || this.determineDepartment(issueData),
+            views: 0,
+            upvotes: 0,
+            comments: [],
+            statusHistory: [{
+                status: 'pending',
+                changedBy: issueData.submittedBy,
+                changedAt: new Date().toISOString(),
+                notes: 'Issue created'
+            }]
         };
         this.issues.push(issue);
+        
+        // Create notification for admin
+        this.createNotification({
+            type: 'new_issue',
+            title: 'New Issue Reported',
+            message: `New issue "${issue.title}" has been reported by ${issueData.submittedBy}`,
+            recipient: 'admin',
+            issueId: issue.id,
+            priority: issue.urgency
+        });
+        
+        // Save to storage
+        this.saveToStorage();
         return issue;
     },
 
@@ -181,7 +252,45 @@ const DataManager = {
     updateIssue(issueId, updates) {
         const index = this.issues.findIndex(issue => issue.id === issueId);
         if (index !== -1) {
+            const oldIssue = this.issues[index];
             this.issues[index] = { ...this.issues[index], ...updates };
+            
+            // Add to status history if status changed
+            if (updates.status && updates.status !== oldIssue.status) {
+                this.issues[index].statusHistory.push({
+                    status: updates.status,
+                    changedBy: updates.changedBy || 'system',
+                    changedAt: new Date().toISOString(),
+                    notes: updates.notes || `Status changed to ${updates.status}`
+                });
+            }
+            
+            // Create notification for user if status changed
+            if (updates.status && updates.status !== oldIssue.status) {
+                this.createNotification({
+                    type: 'status_update',
+                    title: 'Issue Status Updated',
+                    message: `Your issue "${oldIssue.title}" status has been updated to ${updates.status}`,
+                    recipient: oldIssue.submittedBy,
+                    issueId: issueId,
+                    priority: oldIssue.urgency
+                });
+            }
+            
+            // Create notification for user if officer assigned
+            if (updates.assignedTo && !oldIssue.assignedTo) {
+                const officer = this.getOfficerByEmail(updates.assignedTo);
+                this.createNotification({
+                    type: 'officer_assigned',
+                    title: 'Officer Assigned',
+                    message: `Officer ${officer ? officer.name : 'Unknown'} has been assigned to your issue "${oldIssue.title}"`,
+                    recipient: oldIssue.submittedBy,
+                    issueId: issueId,
+                    priority: oldIssue.urgency
+                });
+            }
+            
+            this.saveToStorage();
             return this.issues[index];
         }
         return null;
@@ -372,6 +481,73 @@ const DataManager = {
         }
 
         return results;
+    },
+
+    // Notification management
+    createNotification(notificationData) {
+        const notification = {
+            id: this.generateNotificationId(),
+            ...notificationData,
+            createdAt: new Date().toISOString(),
+            isRead: false
+        };
+        this.notifications.push(notification);
+        this.saveToStorage();
+        return notification;
+    },
+
+    getNotificationsForUser(userEmail) {
+        return this.notifications.filter(notif => 
+            notif.recipient === userEmail || notif.recipient === 'admin'
+        ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+
+    markNotificationAsRead(notificationId) {
+        const notification = this.notifications.find(n => n.id === notificationId);
+        if (notification) {
+            notification.isRead = true;
+            this.saveToStorage();
+        }
+    },
+
+    getUnreadNotificationCount(userEmail) {
+        return this.notifications.filter(notif => 
+            (notif.recipient === userEmail || notif.recipient === 'admin') && !notif.isRead
+        ).length;
+    },
+
+    generateNotificationId() {
+        return this.notifications.length > 0 ? Math.max(...this.notifications.map(n => n.id)) + 1 : 1;
+    },
+
+    // Escalation level management
+    getEscalationLevel(issue) {
+        const daysSinceCreated = Math.floor((Date.now() - new Date(issue.submittedDate)) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceCreated >= 30) return 'Court';
+        if (daysSinceCreated >= 14) return 'State';
+        if (daysSinceCreated >= 7) return 'District';
+        return 'Block';
+    },
+
+    updateEscalationLevels() {
+        this.issues.forEach(issue => {
+            const newLevel = this.getEscalationLevel(issue);
+            if (newLevel !== issue.escalationLevel) {
+                issue.escalationLevel = newLevel;
+                
+                // Create notification for escalation
+                this.createNotification({
+                    type: 'escalation',
+                    title: 'Issue Escalated',
+                    message: `Your issue "${issue.title}" has been escalated to ${newLevel} level`,
+                    recipient: issue.submittedBy,
+                    issueId: issue.id,
+                    priority: issue.urgency
+                });
+            }
+        });
+        this.saveToStorage();
     }
 };
 

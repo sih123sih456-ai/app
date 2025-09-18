@@ -250,11 +250,8 @@ const App = {
             // Show logout notification
             Notifications.show('Logged out successfully', 'info');
             
-            // Auto-reload after logout to ensure clean state
-            setTimeout(() => {
-                console.log('Auto-reloading after logout...');
-                window.location.reload();
-            }, 1500); // 1.5 second delay to show the notification
+            // Note: Removed auto-reload to preserve localStorage data
+            // Data will persist across sessions as requested
             
         } catch (error) {
             console.error('Logout error:', error);

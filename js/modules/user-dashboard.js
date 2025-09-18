@@ -38,6 +38,65 @@ const UserDashboard = {
         this.updateStats();
         this.loadUserIssues();
         this.initializeChatbot();
+        this.loadNotifications();
+        this.updateEscalationLevels();
+    },
+
+    // Load notifications
+    loadNotifications() {
+        const currentUser = App.getCurrentUser();
+        const notifications = DataManager.getNotificationsForUser(currentUser.email);
+        const unreadCount = DataManager.getUnreadNotificationCount(currentUser.email);
+        
+        // Update notification badge in header if exists
+        const notificationBadge = document.getElementById('notificationBadge');
+        if (notificationBadge) {
+            notificationBadge.textContent = unreadCount;
+            notificationBadge.style.display = unreadCount > 0 ? 'block' : 'none';
+        }
+        
+        // Show recent notifications
+        if (notifications.length > 0) {
+            this.showRecentNotifications(notifications.slice(0, 3));
+        }
+    },
+
+    // Show recent notifications
+    showRecentNotifications(notifications) {
+        const notificationContainer = document.getElementById('recentNotifications');
+        if (!notificationContainer) return;
+        
+        notificationContainer.innerHTML = '';
+        
+        notifications.forEach(notification => {
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = `notification-item ${notification.isRead ? 'read' : 'unread'}`;
+            notificationDiv.innerHTML = `
+                <div class="notification-content">
+                    <div class="notification-title">${notification.title}</div>
+                    <div class="notification-message">${notification.message}</div>
+                    <div class="notification-time">${Utils.formatDate(notification.createdAt)}</div>
+                </div>
+                <div class="notification-actions">
+                    <button class="btn-sm" onclick="UserDashboard.markNotificationRead(${notification.id})">
+                        ${notification.isRead ? 'Read' : 'Mark Read'}
+                    </button>
+                </div>
+            `;
+            notificationContainer.appendChild(notificationDiv);
+        });
+    },
+
+    // Mark notification as read
+    markNotificationRead(notificationId) {
+        DataManager.markNotificationAsRead(notificationId);
+        this.loadNotifications();
+    },
+
+    // Update escalation levels
+    updateEscalationLevels() {
+        DataManager.updateEscalationLevels();
+        this.loadUserIssues(); // Refresh issues to show updated escalation levels
     },
 
     // Update user statistics
@@ -84,6 +143,10 @@ const UserDashboard = {
         const card = document.createElement('div');
         card.className = `issue-card ${issue.urgency}`;
         
+        // Get escalation level with color coding
+        const escalationLevel = issue.escalationLevel || 'Block';
+        const escalationClass = this.getEscalationClass(escalationLevel);
+        
         card.innerHTML = `
             <div class="issue-header">
                 <div>
@@ -91,6 +154,7 @@ const UserDashboard = {
                     <div class="issue-meta">
                         <span class="status-badge status-${issue.status}">${Utils.formatStatus(issue.status)}</span>
                         <span class="urgency-badge urgency-${issue.urgency}">${Utils.formatUrgency(issue.urgency)}</span>
+                        <span class="escalation-badge ${escalationClass}">${escalationLevel}</span>
                         <span>${Utils.formatDate(issue.submittedDate)}</span>
                     </div>
                 </div>
@@ -100,12 +164,23 @@ const UserDashboard = {
             <div class="issue-meta">
                 <span><i class="fas fa-map-marker-alt"></i> ${Utils.sanitizeHtml(issue.location)}</span>
                 <span><i class="fas fa-building"></i> ${issue.department || 'General Services'}</span>
-                <span><i class="fas fa-layer-group"></i> ${issue.escalationLevel}</span>
+                <span><i class="fas fa-layer-group"></i> <strong>Escalation:</strong> ${escalationLevel}</span>
                 ${issue.assignedTo ? `<span><i class="fas fa-user-shield"></i> Assigned to Officer</span>` : ''}
             </div>
         `;
         
         return card;
+    },
+
+    // Get escalation class for styling
+    getEscalationClass(level) {
+        switch(level) {
+            case 'Block': return 'escalation-block';
+            case 'District': return 'escalation-district';
+            case 'State': return 'escalation-state';
+            case 'Court': return 'escalation-court';
+            default: return 'escalation-block';
+        }
     },
 
     // Handle issue submission
