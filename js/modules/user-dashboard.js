@@ -99,6 +99,7 @@ const UserDashboard = {
             <div class="issue-description">${Utils.sanitizeHtml(issue.description)}</div>
             <div class="issue-meta">
                 <span><i class="fas fa-map-marker-alt"></i> ${Utils.sanitizeHtml(issue.location)}</span>
+                <span><i class="fas fa-building"></i> ${issue.department || 'General Services'}</span>
                 <span><i class="fas fa-layer-group"></i> ${issue.escalationLevel}</span>
                 ${issue.assignedTo ? `<span><i class="fas fa-user-shield"></i> Assigned to Officer</span>` : ''}
             </div>

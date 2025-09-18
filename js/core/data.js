@@ -26,7 +26,8 @@ const DataManager = {
                 submittedDate: new Date().toISOString(),
                 photos: [],
                 assignedTo: null,
-                escalationLevel: "Block"
+                escalationLevel: "Block",
+                department: "Public Works"
             },
             {
                 id: 2,
@@ -40,7 +41,8 @@ const DataManager = {
                 submittedDate: new Date(Date.now() - 86400000).toISOString(),
                 photos: [],
                 assignedTo: "officer1@example.com",
-                escalationLevel: "Block"
+                escalationLevel: "Block",
+                department: "Public Works"
             },
             {
                 id: 3,
@@ -54,7 +56,8 @@ const DataManager = {
                 submittedDate: new Date(Date.now() - 172800000).toISOString(),
                 photos: [],
                 assignedTo: "officer2@example.com",
-                escalationLevel: "Block"
+                escalationLevel: "Block",
+                department: "Environmental Services"
             }
         ];
 
@@ -141,10 +144,38 @@ const DataManager = {
             ...issueData,
             submittedDate: new Date().toISOString(),
             status: 'pending',
-            escalationLevel: 'Block'
+            escalationLevel: 'Block',
+            department: issueData.department || this.determineDepartment(issueData)
         };
         this.issues.push(issue);
         return issue;
+    },
+
+    // Determine department based on issue content
+    determineDepartment(issueData) {
+        const title = (issueData.title || '').toLowerCase();
+        const description = (issueData.description || '').toLowerCase();
+        const location = (issueData.location || '').toLowerCase();
+        
+        // Keywords for different departments
+        const departmentKeywords = {
+            'Public Works': ['pothole', 'road', 'street', 'sidewalk', 'drainage', 'sewer', 'water', 'infrastructure'],
+            'Environmental Services': ['garbage', 'waste', 'recycling', 'trash', 'cleanup', 'pollution'],
+            'Transportation': ['traffic', 'signal', 'light', 'parking', 'bus', 'transit'],
+            'Parks & Recreation': ['park', 'playground', 'recreation', 'sports', 'garden'],
+            'Public Safety': ['safety', 'emergency', 'fire', 'police', 'security'],
+            'Utilities': ['electricity', 'power', 'gas', 'internet', 'cable']
+        };
+        
+        const allText = `${title} ${description} ${location}`;
+        
+        for (const [department, keywords] of Object.entries(departmentKeywords)) {
+            if (keywords.some(keyword => allText.includes(keyword))) {
+                return department;
+            }
+        }
+        
+        return 'General Services'; // Default department
     },
 
     updateIssue(issueId, updates) {

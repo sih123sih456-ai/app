@@ -69,14 +69,23 @@ const ChatbotModule = {
         // Add to conversation history
         this.conversationHistory.push({ role: 'user', content: message });
         
+        // Show typing indicator
+        this.showTypingIndicator();
+        
         try {
             let response;
+            
+            // Simulate thinking time
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
             
             if (this.apiKey && this.apiKey !== 'YOUR_GEMINI_API_KEY_HERE') {
                 response = await this.callGeminiAPI(message);
             } else {
                 response = this.getFallbackResponse(message);
             }
+            
+            // Hide typing indicator
+            this.hideTypingIndicator();
             
             // Add bot response to conversation history
             this.conversationHistory.push({ role: 'assistant', content: response });
@@ -86,8 +95,14 @@ const ChatbotModule = {
             
         } catch (error) {
             console.error('Error getting chatbot response:', error);
+            this.hideTypingIndicator();
+            this.updateStatus('offline');
+            
             const errorResponse = 'I apologize, but I\'m having trouble processing your request right now. Please try again later.';
             this.addMessage(errorResponse, 'bot');
+            
+            // Reset status after a delay
+            setTimeout(() => this.updateStatus('online'), 5000);
         }
     },
 
@@ -265,24 +280,91 @@ Please provide helpful, concise responses. If you need specific data, mention th
         if (!messages) return;
         
         let welcomeMessage = "Hello! I'm CivicBot, your AI assistant for the civic issue reporting system. ";
+        let capabilities = [];
         
         switch (role) {
             case 'user':
-                welcomeMessage += "I can help you with submitting issues, checking status, and general guidance.";
+                capabilities = [
+                    "Submit new civic issues with photos and location",
+                    "Check status of your submitted issues",
+                    "Get guidance on issue categories and departments",
+                    "Understand the escalation process",
+                    "Learn about the reporting system"
+                ];
                 break;
             case 'admin':
-                welcomeMessage += "I can help you manage issues, approve requests, and oversee the system.";
+                capabilities = [
+                    "Manage all civic issues across the system",
+                    "Approve or reject officer access requests",
+                    "Assign issues to appropriate officers",
+                    "View system statistics and analytics",
+                    "Monitor issue resolution progress"
+                ];
                 break;
             case 'officer':
-                welcomeMessage += "I can help you with assigned issues, status updates, and workload management.";
+                capabilities = [
+                    "View and manage assigned issues",
+                    "Update issue status and progress",
+                    "Track your workload and performance",
+                    "Access issue details and photos",
+                    "Communicate with citizens about issues"
+                ];
                 break;
         }
+        
+        const capabilitiesList = capabilities.map(cap => `• ${cap}`).join('\n');
         
         messages.innerHTML = `
             <div class="chatbot-message bot">
                 <strong>CivicBot:</strong> ${welcomeMessage}
+                <br><br>
+                <strong>I can help you with:</strong><br>
+                ${capabilitiesList}
+                <br><br>
+                <em>Just ask me anything! I'm here to make your civic reporting experience smooth and efficient.</em>
             </div>
         `;
+        
+        // Update status indicator
+        this.updateStatus('online');
+    },
+
+    // Update chatbot status
+    updateStatus(status) {
+        const statusElement = document.getElementById('chatbotStatus');
+        if (statusElement) {
+            statusElement.className = `chatbot-status ${status}`;
+            statusElement.querySelector('span').textContent = status === 'online' ? 'Online' : 'Offline';
+        }
+    },
+
+    // Show typing indicator
+    showTypingIndicator() {
+        const messages = document.getElementById('chatbotMessages');
+        if (!messages) return;
+        
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'chatbot-typing';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = `
+            <span>CivicBot is typing</span>
+            <div class="chatbot-typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        `;
+        
+        messages.appendChild(typingDiv);
+        messages.scrollTop = messages.scrollHeight;
+    },
+
+    // Hide typing indicator
+    hideTypingIndicator() {
+        const typingIndicator = document.getElementById('typingIndicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
     },
 
     // Clear conversation history

@@ -52,6 +52,9 @@ const ImageProcessor = {
     // Extract GPS data from EXIF
     async extractGPSData(file) {
         try {
+            // Try to get current location first as fallback
+            const currentLocation = await this.getCurrentLocation();
+            
             // For GPS extraction, we'll use a simplified approach
             // In a real application, you'd use a library like exif-js or piexifjs
             const arrayBuffer = await file.arrayBuffer();
@@ -71,6 +74,17 @@ const ImageProcessor = {
                         accuracy: 'GPS'
                     };
                 }
+            }
+            
+            // Return current location as fallback if GPS data not found
+            if (currentLocation) {
+                return {
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude,
+                    altitude: currentLocation.altitude,
+                    timestamp: new Date().toISOString(),
+                    accuracy: 'Browser GPS (Fallback)'
+                };
             }
             
             return null;

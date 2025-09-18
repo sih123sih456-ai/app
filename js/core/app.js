@@ -87,36 +87,71 @@ const App = {
 
     // Page navigation
     showPage(pageId) {
-        document.querySelectorAll('.page').forEach(page => {
-            page.classList.remove('active');
-        });
-        document.getElementById(pageId).classList.add('active');
+        try {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+                page.style.display = 'none';
+            });
+            
+            // Show target page
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.style.display = 'block';
+                targetPage.classList.add('active');
+            } else {
+                console.error(`Page with ID '${pageId}' not found`);
+            }
+        } catch (error) {
+            console.error('Error showing page:', error);
+        }
     },
 
     // Dashboard section switching
     switchDashboardSection(sectionId) {
-        // Update nav buttons
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-section') === sectionId);
-        });
-        
-        // Update sections
-        document.querySelectorAll('.dashboard-section').forEach(section => {
-            section.classList.toggle('active', section.id === sectionId);
-        });
-        
-        // Initialize specific sections that need it
-        if (sectionId === 'admin-map' || sectionId === 'officer-map') {
-            setTimeout(() => {
-                if (sectionId === 'admin-map') MapManager.initializeAdminMap();
-                else if (sectionId === 'officer-map') MapManager.initializeOfficerMap();
-            }, 100);
+        try {
+            if (!sectionId) {
+                console.warn('No section ID provided for dashboard switching');
+                return;
+            }
+            
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-section') === sectionId);
+            });
+            
+            // Update sections
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.classList.toggle('active', section.id === sectionId);
+            });
+            
+            // Initialize specific sections that need it
+            if (sectionId === 'admin-map' || sectionId === 'officer-map') {
+                setTimeout(() => {
+                    try {
+                        if (sectionId === 'admin-map' && MapManager.initializeAdminMap) {
+                            MapManager.initializeAdminMap();
+                        } else if (sectionId === 'officer-map' && MapManager.initializeOfficerMap) {
+                            MapManager.initializeOfficerMap();
+                        }
+                    } catch (mapError) {
+                        console.error('Error initializing map:', mapError);
+                    }
+                }, 100);
+            }
+        } catch (error) {
+            console.error('Error switching dashboard section:', error);
         }
     },
 
     // Authentication
     login(user, role) {
         try {
+            // Validate inputs
+            if (!user || !role) {
+                throw new Error('Invalid user or role');
+            }
+            
             this.currentUser = user;
             this.currentRole = role;
             
@@ -212,10 +247,14 @@ const App = {
                 this.modules.language.applyLanguage();
             }
             
-            // Small delay to ensure UI is ready
+            // Show logout notification
+            Notifications.show('Logged out successfully', 'info');
+            
+            // Auto-reload after logout to ensure clean state
             setTimeout(() => {
-                Notifications.show('Logged out successfully', 'info');
-            }, 100);
+                console.log('Auto-reloading after logout...');
+                window.location.reload();
+            }, 1500); // 1.5 second delay to show the notification
             
         } catch (error) {
             console.error('Logout error:', error);
