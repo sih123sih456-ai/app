@@ -580,6 +580,121 @@ const DataManager = {
             }
         });
         this.saveToStorage();
+    },
+
+    // Officer availability and assignment methods
+    getAvailableOfficersForDepartment(department) {
+        return this.officers.filter(officer => 
+            officer.department === department && 
+            officer.availability === 'available' && 
+            officer.currentIssues < officer.maxIssues
+        ).sort((a, b) => b.rating - a.rating); // Sort by rating
+    },
+
+    getOfficerAvailabilityStatus(officerEmail) {
+        const officer = this.getOfficerByEmail(officerEmail);
+        if (!officer) return null;
+        
+        const assignedIssues = this.issues.filter(issue => 
+            issue.assignedTo === officerEmail && 
+            (issue.status === 'in-progress' || issue.status === 'in-review')
+        ).length;
+        
+        return {
+            ...officer,
+            currentIssues: assignedIssues,
+            isAvailable: officer.availability === 'available' && assignedIssues < officer.maxIssues,
+            workloadPercentage: Math.round((assignedIssues / officer.maxIssues) * 100)
+        };
+    },
+
+    assignOfficerToIssue(issueId, officerEmail) {
+        const issue = this.getIssue(issueId);
+        const officer = this.getOfficerByEmail(officerEmail);
+        
+        if (!issue || !officer) return false;
+        
+        // Check if officer is available
+        const availability = this.getOfficerAvailabilityStatus(officerEmail);
+        if (!availability.isAvailable) {
+            return false;
+        }
+        
+        // Update issue
+        const updated = this.updateIssue(issueId, {
+            assignedTo: officerEmail,
+            status: 'in-progress',
+            assignedDate: new Date().toISOString(),
+            changedBy: 'admin'
+        });
+        
+        if (updated) {
+            // Create detailed notification for user
+            this.createNotification({
+                type: 'officer_assigned',
+                title: 'Officer Assigned to Your Issue',
+                message: `Officer ${officer.name} (${officer.specialization}) has been assigned to your issue "${issue.title}". They have ${officer.experience} experience and a ${officer.rating}/5 rating.`,
+                recipient: issue.submittedBy,
+                issueId: issueId,
+                priority: issue.urgency,
+                officerInfo: {
+                    name: officer.name,
+                    specialization: officer.specialization,
+                    experience: officer.experience,
+                    rating: officer.rating,
+                    phone: officer.phone
+                }
+            });
+            
+            // Update officer workload
+            this.updateOfficerWorkload(officerEmail);
+        }
+        
+        return updated;
+    },
+
+    updateOfficerWorkload(officerEmail) {
+        const officer = this.getOfficerByEmail(officerEmail);
+        if (!officer) return;
+        
+        const assignedIssues = this.issues.filter(issue => 
+            issue.assignedTo === officerEmail && 
+            (issue.status === 'in-progress' || issue.status === 'in-review')
+        ).length;
+        
+        officer.currentIssues = assignedIssues;
+        
+        // Update availability based on workload
+        if (assignedIssues >= officer.maxIssues) {
+            officer.availability = 'busy';
+        } else if (assignedIssues < officer.maxIssues * 0.8) {
+            officer.availability = 'available';
+        }
+        
+        this.saveToStorage();
+    },
+
+    // Performance optimization methods
+    getIssuesByDepartment(department) {
+        return this.issues.filter(issue => issue.department === department);
+    },
+
+    getIssueStatsByDepartment() {
+        const departments = [...new Set(this.issues.map(issue => issue.department))];
+        const stats = {};
+        
+        departments.forEach(dept => {
+            const deptIssues = this.getIssuesByDepartment(dept);
+            stats[dept] = {
+                total: deptIssues.length,
+                pending: deptIssues.filter(i => i.status === 'pending').length,
+                inProgress: deptIssues.filter(i => i.status === 'in-progress').length,
+                resolved: deptIssues.filter(i => i.status === 'resolved').length,
+                officers: this.getAvailableOfficersForDepartment(dept).length
+            };
+        });
+        
+        return stats;
     }
 };
 

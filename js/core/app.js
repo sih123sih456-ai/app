@@ -6,24 +6,62 @@ const App = {
 
     // Initialize the application
     init() {
+        const startTime = performance.now();
         console.log('Initializing Civic Issue Reporting System...');
         
-        // Initialize configuration
-        Config.init();
+        try {
+            // Initialize configuration
+            Config.init();
+            
+            // Initialize core modules
+            this.initializeCore();
+            
+            // Initialize feature modules
+            this.initializeModules();
+            
+            // Set up global event listeners
+            this.setupGlobalEvents();
+            
+            // Show login page
+            this.showPage('loginPage');
+            
+            const endTime = performance.now();
+            console.log(`Application initialized successfully in ${(endTime - startTime).toFixed(2)}ms`);
+            
+            // Performance monitoring
+            this.setupPerformanceMonitoring();
+            
+        } catch (error) {
+            console.error('Application initialization failed:', error);
+            Notifications.error('Application failed to initialize. Please refresh the page.');
+        }
+    },
+
+    // Setup performance monitoring
+    setupPerformanceMonitoring() {
+        // Monitor page load performance
+        window.addEventListener('load', () => {
+            const loadTime = performance.now();
+            console.log(`Page fully loaded in ${loadTime.toFixed(2)}ms`);
+        });
         
-        // Initialize core modules
-        this.initializeCore();
+        // Monitor memory usage (if available)
+        if (performance.memory) {
+            setInterval(() => {
+                const memory = performance.memory;
+                console.log(`Memory usage: ${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB / ${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)}MB`);
+            }, 30000); // Every 30 seconds
+        }
         
-        // Initialize feature modules
-        this.initializeModules();
-        
-        // Set up global event listeners
-        this.setupGlobalEvents();
-        
-        // Show login page
-        this.showPage('loginPage');
-        
-        console.log('Application initialized successfully');
+        // Monitor data operations
+        this.originalCreateIssue = DataManager.createIssue;
+        DataManager.createIssue = function(issueData) {
+            const start = performance.now();
+            const result = this.originalCreateIssue.call(DataManager, issueData);
+            const end = performance.now();
+            console.log(`Issue creation took ${(end - start).toFixed(2)}ms`);
+            return result;
+        };
     },
 
     // Initialize core functionality
@@ -51,11 +89,48 @@ const App = {
             officerDashboard: OfficerDashboard,
             chatbot: ChatbotModule
         };
+        
+        // Initialize core modules immediately
+        const coreModules = ['language', 'hamburgerMenu', 'login'];
+        coreModules.forEach(moduleName => {
+            if (this.modules[moduleName] && this.modules[moduleName].init) {
+                this.modules[moduleName].init();
+                this.modules[moduleName].isInitialized = true;
+            }
+        });
+        
+        // Lazy load other modules for better performance
+        this.setupLazyLoading();
+    },
 
-        // Initialize each module
-        Object.values(this.modules).forEach(module => {
-            if (module.init) {
-                module.init();
+    // Setup lazy loading for performance optimization
+    setupLazyLoading() {
+        // Load modules only when their dashboards are accessed
+        const moduleMap = {
+            'userDashboard': ['userDashboard', 'imageProcessor', 'chatbot'],
+            'adminDashboard': ['adminDashboard', 'adminRequests'],
+            'officerDashboard': ['officerDashboard']
+        };
+        
+        // Override show methods to load modules on demand
+        Object.keys(moduleMap).forEach(dashboard => {
+            const modules = moduleMap[dashboard];
+            const originalShow = this.modules[dashboard].show;
+            
+            if (originalShow) {
+                this.modules[dashboard].show = () => {
+                    // Load required modules
+                    modules.forEach(moduleName => {
+                        if (this.modules[moduleName] && this.modules[moduleName].init && !this.modules[moduleName].isInitialized) {
+                            console.log(`Lazy loading module: ${moduleName}`);
+                            this.modules[moduleName].init();
+                            this.modules[moduleName].isInitialized = true;
+                        }
+                    });
+                    
+                    // Call original show method
+                    originalShow.call(this.modules[dashboard]);
+                };
             }
         });
     },

@@ -71,10 +71,29 @@ const UserDashboard = {
         notifications.forEach(notification => {
             const notificationDiv = document.createElement('div');
             notificationDiv.className = `notification-item ${notification.isRead ? 'read' : 'unread'}`;
+            
+            // Enhanced notification content based on type
+            let enhancedMessage = notification.message;
+            if (notification.type === 'officer_assigned' && notification.officerInfo) {
+                enhancedMessage = `
+                    <div class="officer-assignment-notification">
+                        <div class="officer-info">
+                            <strong>${notification.officerInfo.name}</strong>
+                            <span class="specialization">${notification.officerInfo.specialization}</span>
+                        </div>
+                        <div class="officer-details">
+                            <span class="rating">⭐ ${notification.officerInfo.rating}/5</span>
+                            <span class="experience">${notification.officerInfo.experience}</span>
+                        </div>
+                        <div class="assignment-message">${notification.message}</div>
+                    </div>
+                `;
+            }
+            
             notificationDiv.innerHTML = `
                 <div class="notification-content">
                     <div class="notification-title">${notification.title}</div>
-                    <div class="notification-message">${notification.message}</div>
+                    <div class="notification-message">${enhancedMessage}</div>
                     <div class="notification-time">${Utils.formatDate(notification.createdAt)}</div>
                 </div>
                 <div class="notification-actions">

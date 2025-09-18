@@ -1796,6 +1796,155 @@ body.tamil {
     color: #0c5460;
 }
 
+/* Officer Selection Modal */
+.officer-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    margin: 10px 0;
+    background: white;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+.officer-card:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.officer-info {
+    flex: 1;
+}
+
+.officer-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.officer-specialization {
+    color: #667eea;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.officer-details {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 8px;
+}
+
+.officer-details span {
+    font-size: 0.8rem;
+    color: #666;
+    background: #f8f9fa;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.rating {
+    color: #ffc107 !important;
+    background: #fff8e1 !important;
+}
+
+.workload-bar {
+    width: 100%;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.workload-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #ffc107, #f44336);
+    transition: width 0.3s ease;
+}
+
+.officer-actions {
+    margin-left: 15px;
+}
+
+.issue-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #667eea;
+}
+
+.issue-info h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.issue-info p {
+    margin: 5px 0;
+    color: #666;
+}
+
+.officers-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Enhanced Notification Styles */
+.officer-assignment-notification {
+    background: #f8f9ff;
+    border: 1px solid #e3f2fd;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+}
+
+.officer-assignment-notification .officer-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.officer-assignment-notification .officer-info strong {
+    color: #1976d2;
+    font-size: 1.1rem;
+}
+
+.officer-assignment-notification .specialization {
+    color: #667eea;
+    font-size: 0.9rem;
+    background: #e3f2fd;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.officer-assignment-notification .officer-details {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.officer-assignment-notification .officer-details span {
+    font-size: 0.8rem;
+    color: #666;
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+
+.officer-assignment-notification .rating {
+    color: #ffc107 !important;
+    background: #fff8e1 !important;
+}
+
+.officer-assignment-notification .assignment-message {
+    color: #333;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
 /* Login Page Width Fix */
 #loginPage {
     display: flex;

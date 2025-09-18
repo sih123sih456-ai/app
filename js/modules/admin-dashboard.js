@@ -98,7 +98,7 @@ const AdminDashboard = {
         return card;
     },
 
-    // Assign issue
+    // Assign issue with officer availability
     assignIssue(issueId) {
         const issue = DataManager.getIssue(issueId);
         if (!issue) {
@@ -106,31 +106,99 @@ const AdminDashboard = {
             return;
         }
         
-        // Get available officers
-        const officers = DataManager.getAllOfficers();
-        if (officers.length === 0) {
-            Notifications.error('No officers available for assignment');
+        // Get available officers for the issue's department
+        const availableOfficers = DataManager.getAvailableOfficersForDepartment(issue.department);
+        
+        if (availableOfficers.length === 0) {
+            Notifications.error(`No officers available in ${issue.department} department`);
             return;
         }
         
-        // For demo purposes, assign to first available officer
-        const assignedOfficer = officers[0];
+        // Show officer selection modal
+        this.showOfficerSelectionModal(issue, availableOfficers);
+    },
+
+    // Show officer selection modal
+    showOfficerSelectionModal(issue, availableOfficers) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('officerSelectionModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'officerSelectionModal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Assign Officer to Issue</h3>
+                        <span class="close" onclick="this.closest('.modal').style.display='none'">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="issue-info">
+                            <h4>${issue.title}</h4>
+                            <p><strong>Department:</strong> ${issue.department}</p>
+                            <p><strong>Urgency:</strong> ${Utils.formatUrgency(issue.urgency)}</p>
+                        </div>
+                        <div class="officers-list" id="officersList"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
         
-        // Update issue
-        DataManager.updateIssue(issueId, {
-            assignedTo: assignedOfficer.email,
-            status: 'in-review'
+        // Populate officers list
+        const officersList = document.getElementById('officersList');
+        officersList.innerHTML = '';
+        
+        availableOfficers.forEach(officer => {
+            const officerCard = document.createElement('div');
+            officerCard.className = 'officer-card';
+            officerCard.innerHTML = `
+                <div class="officer-info">
+                    <div class="officer-name">${officer.name}</div>
+                    <div class="officer-specialization">${officer.specialization}</div>
+                    <div class="officer-details">
+                        <span class="rating">⭐ ${officer.rating}/5</span>
+                        <span class="experience">${officer.experience}</span>
+                        <span class="workload">${officer.currentIssues}/${officer.maxIssues} issues</span>
+                    </div>
+                    <div class="workload-bar">
+                        <div class="workload-fill" style="width: ${(officer.currentIssues / officer.maxIssues) * 100}%"></div>
+                    </div>
+                </div>
+                <div class="officer-actions">
+                    <button class="btn-primary" onclick="AdminDashboard.assignToOfficer(${issue.id}, '${officer.email}')">
+                        Assign
+                    </button>
+                </div>
+            `;
+            officersList.appendChild(officerCard);
         });
         
-        Notifications.success(`Issue assigned to ${assignedOfficer.name}`);
+        // Show modal
+        modal.style.display = 'block';
+    },
+
+    // Assign issue to specific officer
+    assignToOfficer(issueId, officerEmail) {
+        const success = DataManager.assignOfficerToIssue(issueId, officerEmail);
         
-        // Refresh display
-        this.loadAdminIssues();
-        this.updateStats();
-        
-        // Update map if visible
-        if (document.getElementById('adminMapContainer').style.display !== 'none') {
-            MapManager.updateMapMarkers('admin');
+        if (success) {
+            const officer = DataManager.getOfficerByEmail(officerEmail);
+            Notifications.success(`Issue assigned to ${officer.name}`);
+            
+            // Close modal
+            document.getElementById('officerSelectionModal').style.display = 'none';
+            
+            // Refresh display
+            this.loadAdminIssues();
+            this.updateStats();
+            
+            // Update map if visible
+            if (document.getElementById('adminMapContainer').style.display !== 'none') {
+                MapManager.updateMapMarkers('admin');
+            }
+        } else {
+            Notifications.error('Failed to assign officer. They may no longer be available.');
         }
     },
 
