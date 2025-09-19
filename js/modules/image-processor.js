@@ -36,6 +36,14 @@ const ImageProcessor = {
             const gpsData = await this.extractGPSData(file);
             results.gpsData = gpsData;
 
+            // If no GPS data from EXIF, try OCR to find coordinates in text
+            if (!gpsData) {
+                const ocrData = await this.extractCoordinatesFromText(file);
+                if (ocrData) {
+                    results.gpsData = ocrData;
+                }
+            }
+
             return results;
         } catch (error) {
             console.error('Error processing image:', error);
@@ -133,6 +141,140 @@ const ImageProcessor = {
         let dd = degrees + minutes / 60 + seconds / 3600;
         if (ref === "S" || ref === "W") dd *= -1;
         return parseFloat(dd.toFixed(6));
+    },
+
+    // Extract coordinates from text in image using OCR
+    async extractCoordinatesFromText(file) {
+        try {
+            console.log('Starting OCR coordinate extraction for file:', file.name);
+            
+            // Load Tesseract.js for OCR
+            if (typeof Tesseract === 'undefined') {
+                await this.loadTesseractLibrary();
+            }
+            
+            // Wait for Tesseract to be available
+            let attempts = 0;
+            while (typeof Tesseract === 'undefined' && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (typeof Tesseract === 'undefined') {
+                console.log('Tesseract library not available for OCR');
+                return null;
+            }
+            
+            // Perform OCR on the image
+            const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+                logger: m => console.log('OCR Progress:', m)
+            });
+            
+            console.log('OCR extracted text:', text);
+            
+            // Look for coordinate patterns in the text
+            const coordinates = this.parseCoordinatesFromText(text);
+            
+            if (coordinates) {
+                console.log('Coordinates found in text:', coordinates);
+                return {
+                    latitude: coordinates.lat,
+                    longitude: coordinates.lng,
+                    accuracy: 'OCR Text',
+                    source: 'OCR'
+                };
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn('OCR coordinate extraction failed:', error);
+            return null;
+        }
+    },
+
+    // Load Tesseract.js library for OCR
+    loadTesseractLibrary() {
+        return new Promise((resolve, reject) => {
+            if (typeof Tesseract !== 'undefined') {
+                resolve();
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js';
+            script.onload = () => {
+                console.log('Tesseract library loaded');
+                resolve();
+            };
+            script.onerror = () => {
+                console.error('Failed to load Tesseract library');
+                reject(new Error('Failed to load Tesseract library'));
+            };
+            document.head.appendChild(script);
+        });
+    },
+
+    // Parse coordinates from text using regex patterns
+    parseCoordinatesFromText(text) {
+        if (!text) return null;
+        
+        // Clean the text
+        const cleanText = text.replace(/\s+/g, ' ').trim();
+        console.log('Cleaning text for coordinate parsing:', cleanText);
+        
+        // Various coordinate patterns
+        const patterns = [
+            // Decimal degrees: 40.7128, -74.0060
+            /(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/g,
+            // With lat/lon labels: lat: 40.7128, lon: -74.0060
+            /lat[itude]?:\s*(-?\d+\.?\d*).*?lon[gitude]?:\s*(-?\d+\.?\d*)/gi,
+            // With N/S/E/W: 40.7128 N, 74.0060 W
+            /(-?\d+\.?\d*)\s*[NS]\s*,?\s*(-?\d+\.?\d*)\s*[EW]/gi,
+            // GPS format: GPS: 40.7128, -74.0060
+            /gps:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
+            // Coordinates format: Coordinates: 40.7128, -74.0060
+            /coord[inates]?:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
+            // Location format: Location: 40.7128, -74.0060
+            /location:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi
+        ];
+        
+        for (const pattern of patterns) {
+            const matches = [...cleanText.matchAll(pattern)];
+            for (const match of matches) {
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                
+                // Validate coordinate ranges
+                if (this.isValidCoordinate(lat, lng)) {
+                    console.log('Valid coordinates found:', { lat, lng });
+                    return { lat, lng };
+                }
+            }
+        }
+        
+        // Try to find any two numbers that could be coordinates
+        const numberPattern = /(-?\d+\.?\d*)/g;
+        const numbers = [...cleanText.matchAll(numberPattern)].map(m => parseFloat(m[1]));
+        
+        // Look for pairs of numbers that could be coordinates
+        for (let i = 0; i < numbers.length - 1; i++) {
+            const lat = numbers[i];
+            const lng = numbers[i + 1];
+            
+            if (this.isValidCoordinate(lat, lng)) {
+                console.log('Valid coordinate pair found:', { lat, lng });
+                return { lat, lng };
+            }
+        }
+        
+        console.log('No valid coordinates found in text');
+        return null;
+    },
+
+    // Validate if coordinates are within valid ranges
+    isValidCoordinate(lat, lng) {
+        return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && 
+               !isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng);
     },
 
 

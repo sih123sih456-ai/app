@@ -17,8 +17,12 @@ const UserDashboard = {
         // Issue form submission
         const issueForm = document.getElementById('issueForm');
         if (issueForm && !issueForm.hasAttribute('data-listener-added')) {
-            issueForm.addEventListener('submit', (e) => this.handleIssueSubmission(e));
+            issueForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleIssueSubmission(e);
+            });
             issueForm.setAttribute('data-listener-added', 'true');
+            console.log('Issue form event listener added');
         }
         
         // Location selection
@@ -73,6 +77,13 @@ const UserDashboard = {
         
         // Set up event listeners when dashboard is shown
         this.setupEventListenersOnShow();
+        
+        // Debug: Check if form exists
+        const issueForm = document.getElementById('issueForm');
+        console.log('Issue form found:', !!issueForm);
+        if (issueForm) {
+            console.log('Issue form has listener:', issueForm.hasAttribute('data-listener-added'));
+        }
         
         this.updateStats();
         this.loadUserIssues();
@@ -244,7 +255,7 @@ const UserDashboard = {
     // Handle issue submission
     handleIssueSubmission(e) {
         e.preventDefault();
-        console.log('Form submission started');
+        console.log('Form submission started - handleIssueSubmission called');
         
         const title = document.getElementById('issueTitle').value.trim();
         const description = document.getElementById('issueDescription').value.trim();
@@ -254,7 +265,7 @@ const UserDashboard = {
         console.log('Form data:', { title, description, location, urgency });
         
         // Validation
-        if (!title || !description || !location || !urgency) {
+        if (!title || !description || !urgency) {
             Notifications.error('Please fill in all required fields');
             return;
         }
@@ -269,16 +280,36 @@ const UserDashboard = {
             return;
         }
         
+        // Location validation - allow empty if coordinates are available
+        let finalLocation = location;
+        let coordinates = MapManager.getCurrentLocationCoords();
+        
+        // If no location text but we have coordinates, use coordinates as location
+        if (!finalLocation && coordinates) {
+            finalLocation = `GPS: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`;
+        }
+        
+        // If still no location, show error
+        if (!finalLocation) {
+            Notifications.error('Please select a location on the map or enter location manually');
+            return;
+        }
+        
         // Get current user
         const currentUser = App.getCurrentUser();
         console.log('Current user:', currentUser);
+        
+        if (!currentUser) {
+            Notifications.error('User not found. Please login again.');
+            return;
+        }
         
         // Create issue
         const issue = DataManager.createIssue({
             title,
             description,
-            location,
-            coordinates: MapManager.getCurrentLocationCoords() || [40.7128, -74.0060],
+            location: finalLocation,
+            coordinates: coordinates || [40.7128, -74.0060],
             urgency,
             submittedBy: currentUser.email,
             photos: this.getPhotoPreviews()
@@ -335,12 +366,12 @@ const UserDashboard = {
                 };
                 reader.readAsDataURL(file);
                 
-                // Process GPS data ONLY if from GPS camera
-                if (results.gpsData && results.gpsData.source === 'EXIF') {
+                // Process GPS data from EXIF or OCR
+                if (results.gpsData) {
                     const locationInput = document.getElementById('issueLocation');
                     if (locationInput) {
-                        locationInput.value = `GPS: ${results.gpsData.latitude.toFixed(6)}, ${results.gpsData.longitude.toFixed(6)}`;
-                        locationInput.style.display = 'none'; // Hide location input since GPS found
+                        locationInput.value = `${results.gpsData.source}: ${results.gpsData.latitude.toFixed(6)}, ${results.gpsData.longitude.toFixed(6)}`;
+                        locationInput.style.display = 'none'; // Hide location input since coordinates found
                     }
                     
                     // Update map
@@ -351,7 +382,14 @@ const UserDashboard = {
                         });
                     }
                     
-                    Notifications.success('GPS location extracted from camera photo!', 'success');
+                    // Set coordinates in MapManager
+                    MapManager.currentLocation = [results.gpsData.latitude, results.gpsData.longitude];
+                    
+                    if (results.gpsData.source === 'EXIF') {
+                        Notifications.success('GPS location extracted from camera photo!', 'success');
+                    } else if (results.gpsData.source === 'OCR') {
+                        Notifications.success('Coordinates found in image text!', 'success');
+                    }
                 } else {
                     // Show location input and popup message
                     const locationInput = document.getElementById('issueLocation');
@@ -361,7 +399,7 @@ const UserDashboard = {
                     }
                     
                     // Show popup message
-                    Notifications.warning('GPS not found in image. Please enter location manually or use current location.', 'warning');
+                    Notifications.warning('No coordinates found in image. Please enter location manually or use current location.', 'warning');
                     
                     // Add current location button
                     this.addCurrentLocationButton();
