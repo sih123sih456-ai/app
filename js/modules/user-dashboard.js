@@ -85,6 +85,10 @@ const UserDashboard = {
             console.log('Issue form has listener:', issueForm.hasAttribute('data-listener-added'));
         }
         
+        // Always show current location button since it's mandatory
+        this.addCurrentLocationButton();
+        this.showLocationRequiredMessage();
+        
         this.updateStats();
         this.loadUserIssues();
         this.initializeChatbot();
@@ -280,19 +284,23 @@ const UserDashboard = {
             return;
         }
         
-        // Location validation - allow empty if coordinates are available
+        // Location validation - MANDATORY: User must use current location
         let finalLocation = location;
         let coordinates = MapManager.getCurrentLocationCoords();
         
-        // If no location text but we have coordinates, use coordinates as location
-        if (!finalLocation && coordinates) {
-            finalLocation = `GPS: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`;
+        // Check if user has provided current location
+        if (!coordinates) {
+            Notifications.error('Current location is mandatory. Please allow location access or use the "Use Current Location" button.');
+            this.showLocationRequiredMessage();
+            return;
         }
         
-        // If still no location, show error
-        if (!finalLocation) {
-            Notifications.error('Please select a location on the map or enter location manually');
-            return;
+        // Use current location coordinates as the primary location
+        finalLocation = `Current Location: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`;
+        
+        // If user also provided text location, append it for reference
+        if (location && location.trim()) {
+            finalLocation += ` (${location.trim()})`;
         }
         
         // Get current user
@@ -391,18 +399,11 @@ const UserDashboard = {
                         Notifications.success('Coordinates found in image text!', 'success');
                     }
                 } else {
-                    // Show location input and popup message
-                    const locationInput = document.getElementById('issueLocation');
-                    if (locationInput) {
-                        locationInput.style.display = 'block';
-                        locationInput.placeholder = 'Enter issue location manually or use current location';
-                    }
+                    // No coordinates found in image - user must use current location
+                    Notifications.warning('No coordinates found in image. Current location is mandatory - please use the "Use Current Location" button.', 'warning');
                     
-                    // Show popup message
-                    Notifications.warning('No coordinates found in image. Please enter location manually or use current location.', 'warning');
-                    
-                    // Add current location button
-                    this.addCurrentLocationButton();
+                    // Show location required message
+                    this.showLocationRequiredMessage();
                 }
                 
             } catch (error) {
@@ -419,10 +420,37 @@ const UserDashboard = {
             const currentLocationBtn = document.createElement('button');
             currentLocationBtn.id = 'currentLocationBtn';
             currentLocationBtn.type = 'button';
-            currentLocationBtn.className = 'btn-secondary';
-            currentLocationBtn.innerHTML = '<i class="fas fa-location-arrow"></i> Use Current Location';
+            currentLocationBtn.className = 'btn-primary';
+            currentLocationBtn.innerHTML = '<i class="fas fa-location-arrow"></i> Use Current Location (Required)';
             currentLocationBtn.addEventListener('click', () => this.getCurrentLocation());
             locationContainer.appendChild(currentLocationBtn);
+        }
+    },
+
+    // Show location required message
+    showLocationRequiredMessage() {
+        const locationContainer = document.querySelector('.location-input');
+        if (locationContainer) {
+            // Remove existing message
+            const existingMessage = document.getElementById('locationRequiredMessage');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // Add new message
+            const message = document.createElement('div');
+            message.id = 'locationRequiredMessage';
+            message.className = 'location-required-message';
+            message.innerHTML = `
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 10px; margin: 10px 0; color: #856404;">
+                    <strong><i class="fas fa-exclamation-triangle"></i> Current Location Required</strong><br>
+                    For accurate issue reporting, please use your current location. Click the button below to get your GPS coordinates.
+                </div>
+            `;
+            locationContainer.appendChild(message);
+            
+            // Ensure current location button is visible
+            this.addCurrentLocationButton();
         }
     },
 
@@ -435,6 +463,9 @@ const UserDashboard = {
                 locationInput.value = `Current: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`;
             }
             
+            // Set coordinates in MapManager for form submission
+            MapManager.currentLocation = [location.latitude, location.longitude];
+            
             // Update map
             if (MapManager.maps.userMap) {
                 MapManager.selectLocation({
@@ -443,9 +474,16 @@ const UserDashboard = {
                 });
             }
             
-            Notifications.success('Current location obtained!', 'success');
+            // Remove the location required message since we now have location
+            const locationMessage = document.getElementById('locationRequiredMessage');
+            if (locationMessage) {
+                locationMessage.remove();
+            }
+            
+            Notifications.success('Current location obtained! You can now submit your issue.', 'success');
         } catch (error) {
-            Notifications.error('Unable to get current location. Please enter manually.', 'error');
+            Notifications.error('Unable to get current location. Please check your browser permissions and try again.', 'error');
+            this.showLocationRequiredMessage();
         }
     },
 

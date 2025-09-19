@@ -99,8 +99,8 @@ const ImageProcessor = {
                                         
                                         console.log('Valid GPS coordinates found!');
                                         resolve({
-                                            latitude: latDec,
-                                            longitude: lonDec,
+                                            latitude: parseFloat(latDec),
+                                            longitude: parseFloat(lonDec),
                                             accuracy: 'GPS Camera',
                                             source: 'EXIF'
                                         });
@@ -143,7 +143,7 @@ const ImageProcessor = {
         return parseFloat(dd.toFixed(6));
     },
 
-    // Extract coordinates from text in image using OCR
+    // Extract coordinates from text in image using OCR (improved version)
     async extractCoordinatesFromText(file) {
         try {
             console.log('Starting OCR coordinate extraction for file:', file.name);
@@ -165,15 +165,19 @@ const ImageProcessor = {
                 return null;
             }
             
-            // Perform OCR on the image
+            // Perform OCR on the image with improved settings
             const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-                logger: m => console.log('OCR Progress:', m)
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        console.log('OCR Progress:', Math.round(m.progress * 100) + '%');
+                    }
+                }
             });
             
             console.log('OCR extracted text:', text);
             
-            // Look for coordinate patterns in the text
-            const coordinates = this.parseCoordinatesFromText(text);
+            // Look for coordinate patterns in the text using improved method
+            const coordinates = this.findGPS(text);
             
             if (coordinates) {
                 console.log('Coordinates found in text:', coordinates);
@@ -192,7 +196,7 @@ const ImageProcessor = {
         }
     },
 
-    // Load Tesseract.js library for OCR
+    // Load Tesseract.js library for OCR (updated to version 5)
     loadTesseractLibrary() {
         return new Promise((resolve, reject) => {
             if (typeof Tesseract !== 'undefined') {
@@ -201,7 +205,7 @@ const ImageProcessor = {
             }
             
             const script = document.createElement('script');
-            script.src = 'https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
             script.onload = () => {
                 console.log('Tesseract library loaded');
                 resolve();
@@ -214,7 +218,7 @@ const ImageProcessor = {
         });
     },
 
-    // Parse coordinates from text using regex patterns
+    // Parse coordinates from text using improved regex patterns (based on provided code)
     parseCoordinatesFromText(text) {
         if (!text) return null;
         
@@ -222,20 +226,62 @@ const ImageProcessor = {
         const cleanText = text.replace(/\s+/g, ' ').trim();
         console.log('Cleaning text for coordinate parsing:', cleanText);
         
-        // Various coordinate patterns - more comprehensive
-        const patterns = [
-            // Decimal degrees: 40.7128, -74.0060
-            /(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/g,
-            // With lat/lon labels: lat: 40.7128, lon: -74.0060
-            /lat[itude]?:\s*(-?\d+\.?\d*).*?lon[gitude]?:\s*(-?\d+\.?\d*)/gi,
-            // With N/S/E/W: 40.7128 N, 74.0060 W
-            /(-?\d+\.?\d*)\s*[NS]\s*,?\s*(-?\d+\.?\d*)\s*[EW]/gi,
+        // Use the improved regex patterns from the provided code
+        const coords = this.findGPS(cleanText);
+        if (coords) {
+            console.log('Valid coordinates found:', coords);
+            return coords;
+        }
+        
+        console.log('No valid coordinates found in text');
+        return null;
+    },
+
+    // Improved GPS finding function (based on provided code)
+    findGPS(text) {
+        // Pattern 1: Basic decimal degrees with comma or space
+        let regex1 = /(-?\d{1,2}\.\d+)[°\s,]+(-?\d{1,3}\.\d+)/;
+        let match = text.match(regex1);
+        if (match) {
+            const lat = parseFloat(match[1]);
+            const lng = parseFloat(match[2]);
+            if (this.isValidCoordinate(lat, lng)) {
+                return { lat, lng };
+            }
+        }
+
+        // Pattern 2: Latitude/Longitude labels
+        let regex2 = /Lat(?:itude)?[:\s]*(-?\d{1,2}\.\d+)[°\sNnSs]*.*?Long(?:itude)?[:\s]*(-?\d{1,3}\.\d+)[°\sEeWw]*/;
+        match = text.match(regex2);
+        if (match) {
+            const lat = parseFloat(match[1]);
+            const lng = parseFloat(match[2]);
+            if (this.isValidCoordinate(lat, lng)) {
+                return { lat, lng };
+            }
+        }
+
+        // Pattern 3: DMS format with degrees, minutes, seconds
+        let regex3 = /(\d{1,2})°\s*(\d{1,2})['′]\s*(\d{1,2}(?:\.\d+)?)["″]?\s*([NS])[, ]+\s*(\d{1,3})°\s*(\d{1,2})['′]\s*(\d{1,2}(?:\.\d+)?)["″]?\s*([EW])/;
+        match = text.match(regex3);
+        if (match) {
+            let lat = this.dmsToDecimal(+match[1], +match[2], +match[3], match[4]);
+            let lon = this.dmsToDecimal(+match[5], +match[6], +match[7], match[8]);
+            if (this.isValidCoordinate(lat, lon)) {
+                return { lat, lng: lon };
+            }
+        }
+
+        // Pattern 4: Additional common formats
+        const additionalPatterns = [
             // GPS format: GPS: 40.7128, -74.0060
             /gps:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
             // Coordinates format: Coordinates: 40.7128, -74.0060
             /coord[inates]?:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
             // Location format: Location: 40.7128, -74.0060
             /location:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
+            // With N/S/E/W: 40.7128 N, 74.0060 W
+            /(-?\d+\.?\d*)\s*[NS]\s*,?\s*(-?\d+\.?\d*)\s*[EW]/gi,
             // Google Maps format: 40.7128°N, 74.0060°W
             /(-?\d+\.?\d*)°[NS]\s*,?\s*(-?\d+\.?\d*)°[EW]/gi,
             // Space separated: 40.7128 -74.0060
@@ -258,80 +304,29 @@ const ImageProcessor = {
             /(-?\d+\.?\d*)\s{2,}(-?\d+\.?\d*)/g
         ];
         
-        for (const pattern of patterns) {
-            const matches = [...cleanText.matchAll(pattern)];
+        for (const pattern of additionalPatterns) {
+            const matches = [...text.matchAll(pattern)];
             for (const match of matches) {
                 const lat = parseFloat(match[1]);
                 const lng = parseFloat(match[2]);
                 
-                // Validate coordinate ranges
                 if (this.isValidCoordinate(lat, lng)) {
-                    console.log('Valid coordinates found with pattern:', pattern, { lat, lng });
                     return { lat, lng };
                 } else if (this.isValidCoordinate(lng, lat)) {
                     // Try swapped coordinates
-                    console.log('Valid coordinates found (swapped):', { lat: lng, lng: lat });
                     return { lat: lng, lng: lat };
                 }
             }
         }
-        
-        // Try to find any two numbers that could be coordinates
-        const numberPattern = /(-?\d+\.?\d*)/g;
-        const numbers = [...cleanText.matchAll(numberPattern)].map(m => parseFloat(m[1]));
-        
-        // Look for pairs of numbers that could be coordinates
-        for (let i = 0; i < numbers.length - 1; i++) {
-            const lat = numbers[i];
-            const lng = numbers[i + 1];
-            
-            if (this.isValidCoordinate(lat, lng)) {
-                console.log('Valid coordinate pair found:', { lat, lng });
-                return { lat, lng };
-            } else if (this.isValidCoordinate(lng, lat)) {
-                // Try swapped coordinates
-                console.log('Valid coordinate pair found (swapped):', { lat: lng, lng: lat });
-                return { lat: lng, lng: lat };
-            }
-        }
-        
-        // Try to find coordinates in different formats
-        const alternativePatterns = [
-            // DMS format: 40°42'46.08"N, 74°0'21.6"W
-            /(\d+)°(\d+)'([\d.]+)"[NS]\s*,?\s*(\d+)°(\d+)'([\d.]+)"[EW]/gi,
-            // DMS without quotes: 40°42'46.08N, 74°0'21.6W
-            /(\d+)°(\d+)'([\d.]+)[NS]\s*,?\s*(\d+)°(\d+)'([\d.]+)[EW]/gi
-        ];
-        
-        for (const pattern of alternativePatterns) {
-            const matches = [...cleanText.matchAll(pattern)];
-            for (const match of matches) {
-                const latDeg = parseInt(match[1]);
-                const latMin = parseInt(match[2]);
-                const latSec = parseFloat(match[3]);
-                const lngDeg = parseInt(match[4]);
-                const lngMin = parseInt(match[5]);
-                const lngSec = parseFloat(match[6]);
-                
-                const lat = latDeg + latMin / 60 + latSec / 3600;
-                const lng = lngDeg + lngMin / 60 + lngSec / 3600;
-                
-                // Apply direction
-                const latDir = match[0].includes('S') ? -1 : 1;
-                const lngDir = match[0].includes('W') ? -1 : 1;
-                
-                const finalLat = lat * latDir;
-                const finalLng = lng * lngDir;
-                
-                if (this.isValidCoordinate(finalLat, finalLng)) {
-                    console.log('Valid DMS coordinates found:', { lat: finalLat, lng: finalLng });
-                    return { lat: finalLat, lng: finalLng };
-                }
-            }
-        }
-        
-        console.log('No valid coordinates found in text');
+
         return null;
+    },
+
+    // Convert DMS to Decimal Degrees (from provided code)
+    dmsToDecimal(deg, min, sec, ref) {
+        let dd = deg + min/60 + sec/3600;
+        if (ref === "S" || ref === "W") dd *= -1;
+        return parseFloat(dd.toFixed(6));
     },
 
     // Validate if coordinates are within valid ranges
