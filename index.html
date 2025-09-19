@@ -207,11 +207,11 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="issueTitle">Issue Title *</label>
-                                <input type="text" id="issueTitle" required>
+                                <input type="text" id="issueTitle" autocomplete="off" required>
                             </div>
                             <div class="form-group">
                                 <label for="issueUrgency">Urgency Level *</label>
-                                <select id="issueUrgency" required>
+                                <select id="issueUrgency" autocomplete="off" required>
                                     <option value="">Select Urgency</option>
                                     <option value="high">High</option>
                                     <option value="medium">Medium</option>
@@ -222,13 +222,13 @@
                         
                         <div class="form-group">
                             <label for="issueDescription">Description *</label>
-                            <textarea id="issueDescription" rows="4" required></textarea>
+                            <textarea id="issueDescription" rows="4" autocomplete="off" required></textarea>
                         </div>
 
                         <div class="form-group">
                             <label for="issueLocation">Location *</label>
                             <div class="location-input">
-                                <input type="text" id="issueLocation" placeholder="Upload image with GPS or enter location manually" required style="display: none;">
+                                <input type="text" id="issueLocation" placeholder="Upload image with GPS or enter location manually" autocomplete="off" required style="display: none;">
                                 <button type="button" id="selectLocationBtn" class="btn-secondary">
                                     <i class="fas fa-map-marker-alt"></i> Select on Map
                                 </button>

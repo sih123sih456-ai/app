@@ -6,273 +6,147 @@
     <title>Test Fixes</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
         .success { background-color: #d4edda; border-color: #c3e6cb; }
         .error { background-color: #f8d7da; border-color: #f5c6cb; }
-        .info { background-color: #d1ecf1; border-color: #bee5eb; }
-        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-        .console-output { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 3px; }
     </style>
 </head>
 <body>
-    <h1>Civic Issue Reporter - Test Fixes</h1>
+    <h1>Test Fixes for Submit Button and Image Processing</h1>
     
     <div class="test-section">
-        <h2>1. Test Admin Login</h2>
-        <button onclick="testAdminLogin()">Test Admin Login</button>
-        <div id="adminLoginResult" class="console-output"></div>
-    </div>
-    
-    <div class="test-section">
-        <h2>2. Test Hamburger Menu Elements</h2>
-        <button onclick="testHamburgerElements()">Test Hamburger Buttons</button>
-        <div id="hamburgerResult" class="console-output"></div>
+        <h2>Test 1: Submit Button Fix</h2>
+        <p>This tests if the DataManager.createIssue method works without the TypeError.</p>
+        <button onclick="testSubmitButton()">Test Submit Button Fix</button>
+        <div id="submitResult" class="result"></div>
     </div>
     
     <div class="test-section">
-        <h2>3. Test Data Persistence</h2>
-        <button onclick="testDataPersistence()">Test localStorage</button>
-        <button onclick="clearTestData()">Clear Test Data</button>
-        <div id="dataResult" class="console-output"></div>
+        <h2>Test 2: Image Processing for Coordinates</h2>
+        <p>This tests the improved coordinate extraction from text.</p>
+        <textarea id="coordinateText" placeholder="Enter text with coordinates like: 40.7128, -74.0060 or GPS: 40.7128, -74.0060" rows="3">GPS: 40.7128, -74.0060</textarea>
+        <button onclick="testCoordinateExtraction()">Test Coordinate Extraction</button>
+        <div id="coordinateResult" class="result"></div>
     </div>
     
     <div class="test-section">
-        <h2>4. Test Module Loading</h2>
-        <button onclick="testModuleLoading()">Test All Modules</button>
-        <div id="moduleResult" class="console-output"></div>
+        <h2>Test 3: Various Coordinate Formats</h2>
+        <p>Test different coordinate formats that should be recognized.</p>
+        <button onclick="testVariousFormats()">Test Various Formats</button>
+        <div id="formatResult" class="result"></div>
     </div>
 
-    <div class="test-section">
-        <h2>5. Test Admin Dashboard</h2>
-        <button onclick="testAdminDashboard()">Test Admin Dashboard</button>
-        <div id="adminDashboardResult" class="console-output"></div>
-    </div>
-
-    <div class="test-section">
-        <h2>6. Console Output</h2>
-        <button onclick="clearConsole()">Clear Console</button>
-        <div id="consoleOutput" class="console-output"></div>
-    </div>
-
-    <script>
-        let consoleOutput = '';
-        const originalLog = console.log;
-        const originalError = console.error;
-        const originalWarn = console.warn;
-
-        console.log = function(...args) {
-            consoleOutput += '[LOG] ' + args.join(' ') + '\n';
-            originalLog.apply(console, args);
-            updateConsoleOutput();
-        };
-
-        console.error = function(...args) {
-            consoleOutput += '[ERROR] ' + args.join(' ') + '\n';
-            originalError.apply(console, args);
-            updateConsoleOutput();
-        };
-
-        console.warn = function(...args) {
-            consoleOutput += '[WARN] ' + args.join(' ') + '\n';
-            originalWarn.apply(console, args);
-            updateConsoleOutput();
-        };
-
-        function updateConsoleOutput() {
-            const output = document.getElementById('consoleOutput');
-            if (output) {
-                output.textContent = consoleOutput;
-                output.scrollTop = output.scrollHeight;
-            }
-        }
-
-        function clearConsole() {
-            consoleOutput = '';
-            updateConsoleOutput();
-        }
-
-        function testAdminLogin() {
-            const result = document.getElementById('adminLoginResult');
-            result.innerHTML = 'Testing admin login...\n';
-            
-            try {
-                if (typeof App === 'undefined') {
-                    result.innerHTML += '[ERROR] App is not defined\n';
-                    return;
-                }
-                
-                const admin = {
-                    name: 'System Administrator',
-                    email: 'admin@gmail.com',
-                    role: 'admin'
-                };
-                
-                console.log('Attempting admin login...');
-                App.login(admin, 'admin');
-                result.innerHTML += '[SUCCESS] Admin login called - check console for details\n';
-            } catch (error) {
-                result.innerHTML += `[ERROR] Admin login test failed: ${error.message}\n`;
-            }
-        }
-        
-        function testHamburgerElements() {
-            const result = document.getElementById('hamburgerResult');
-            result.innerHTML = 'Testing hamburger menu elements...\n';
-            
-            const elements = ['userHamburger', 'adminHamburger', 'officerHamburger'];
-            let allFound = true;
-            
-            elements.forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    result.innerHTML += `[SUCCESS] ${id}: Found (display: ${window.getComputedStyle(element).display})\n`;
-                } else {
-                    result.innerHTML += `[ERROR] ${id}: Not found\n`;
-                    allFound = false;
-                }
-            });
-            
-            if (allFound) {
-                result.innerHTML += '[SUCCESS] All hamburger buttons found!\n';
-            } else {
-                result.innerHTML += '[ERROR] Some hamburger buttons missing\n';
-            }
-        }
-        
-        function testDataPersistence() {
-            const result = document.getElementById('dataResult');
-            result.innerHTML = 'Testing data persistence...\n';
-            
-            try {
-                // Test localStorage
-                const testData = { test: 'data', timestamp: Date.now() };
-                localStorage.setItem('civicTestData', JSON.stringify(testData));
-                
-                const retrieved = JSON.parse(localStorage.getItem('civicTestData'));
-                
-                if (retrieved && retrieved.test === 'data') {
-                    result.innerHTML += '[SUCCESS] localStorage is working\n';
-                } else {
-                    result.innerHTML += '[ERROR] localStorage not working\n';
-                }
-                
-                // Test DataManager
-                if (typeof DataManager !== 'undefined') {
-                    result.innerHTML += '[SUCCESS] DataManager is loaded\n';
-                    result.innerHTML += `[INFO] Issues: ${DataManager.issues.length}\n`;
-                    result.innerHTML += `[INFO] Users: ${DataManager.users.length}\n`;
-                    result.innerHTML += `[INFO] Admins: ${DataManager.admins.length}\n`;
-                    result.innerHTML += `[INFO] Officers: ${DataManager.officers.length}\n`;
-                } else {
-                    result.innerHTML += '[ERROR] DataManager not loaded\n';
-                }
-            } catch (error) {
-                result.innerHTML += `[ERROR] Data persistence test failed: ${error.message}\n`;
-            }
-        }
-        
-        function clearTestData() {
-            localStorage.removeItem('civicTestData');
-            const result = document.getElementById('dataResult');
-            result.innerHTML = 'Test data cleared\n';
-        }
-        
-        function testModuleLoading() {
-            const result = document.getElementById('moduleResult');
-            result.innerHTML = 'Testing module loading...\n';
-            
-            const modules = [
-                'App', 'DataManager', 'Notifications', 'LoginModule', 
-                'AdminDashboard', 'HamburgerMenu', 'MapManager', 'Utils'
-            ];
-            
-            let allLoaded = true;
-            modules.forEach(module => {
-                if (typeof window[module] !== 'undefined') {
-                    result.innerHTML += `[SUCCESS] ${module}: Loaded\n`;
-                } else {
-                    result.innerHTML += `[ERROR] ${module}: Not loaded\n`;
-                    allLoaded = false;
-                }
-            });
-            
-            if (allLoaded) {
-                result.innerHTML += '[SUCCESS] All modules loaded!\n';
-            } else {
-                result.innerHTML += '[ERROR] Some modules missing\n';
-            }
-        }
-
-        function testAdminDashboard() {
-            const result = document.getElementById('adminDashboardResult');
-            result.innerHTML = 'Testing admin dashboard...\n';
-            
-            try {
-                if (typeof AdminDashboard === 'undefined') {
-                    result.innerHTML += '[ERROR] AdminDashboard not loaded\n';
-                    return;
-                }
-                
-                result.innerHTML += '[SUCCESS] AdminDashboard loaded\n';
-                
-                // Test if show method exists
-                if (typeof AdminDashboard.show === 'function') {
-                    result.innerHTML += '[SUCCESS] AdminDashboard.show method exists\n';
-                } else {
-                    result.innerHTML += '[ERROR] AdminDashboard.show method missing\n';
-                }
-                
-                // Test if required elements exist
-                const requiredElements = [
-                    'adminPendingCount', 'adminReviewCount', 'adminResolvedCount', 
-                    'adminRequestCount', 'adminIssuesList', 'adminDetailsList'
-                ];
-                
-                let allElementsFound = true;
-                requiredElements.forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        result.innerHTML += `[SUCCESS] ${id}: Found\n`;
-                    } else {
-                        result.innerHTML += `[ERROR] ${id}: Not found\n`;
-                        allElementsFound = false;
-                    }
-                });
-                
-                if (allElementsFound) {
-                    result.innerHTML += '[SUCCESS] All admin dashboard elements found!\n';
-                } else {
-                    result.innerHTML += '[ERROR] Some admin dashboard elements missing\n';
-                }
-                
-            } catch (error) {
-                result.innerHTML += `[ERROR] Admin dashboard test failed: ${error.message}\n`;
-            }
-        }
-    </script>
-    
-    <!-- Load the main application scripts -->
     <script src="js/core/config.js"></script>
-    <script src="js/core/app.js"></script>
     <script src="js/core/utils.js"></script>
     <script src="js/core/data.js"></script>
-    <script src="js/modules/language.js"></script>
     <script src="js/modules/image-processor.js"></script>
-    <script src="js/modules/hamburger-menu.js"></script>
-    <script src="js/modules/login.js"></script>
-    <script src="js/modules/user-dashboard.js"></script>
-    <script src="js/modules/admin-dashboard.js"></script>
-    <script src="js/modules/admin-requests.js"></script>
-    <script src="js/modules/officer-dashboard.js"></script>
-    <script src="js/modules/chatbot.js"></script>
-    <script src="js/modules/maps.js"></script>
-    <script src="js/modules/notifications.js"></script>
-    
+    <script src="js/core/app.js"></script>
+
     <script>
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Initializing test page...');
-            App.init();
+        // Test 1: Submit Button Fix
+        function testSubmitButton() {
+            const resultDiv = document.getElementById('submitResult');
+            try {
+                // Initialize DataManager
+                DataManager.init();
+                
+                // Test creating an issue
+                const testIssue = DataManager.createIssue({
+                    title: "Test Issue",
+                    description: "This is a test issue to verify the submit button works",
+                    location: "Test Location",
+                    coordinates: [40.7128, -74.0060],
+                    urgency: "medium",
+                    submittedBy: "test@example.com",
+                    photos: []
+                });
+                
+                if (testIssue && testIssue.id) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Submit button fix successful!<br>
+                            Issue created with ID: ${testIssue.id}<br>
+                            Title: ${testIssue.title}<br>
+                            Status: ${testIssue.status}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ Issue creation failed - no ID returned</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Test 2: Coordinate Extraction
+        function testCoordinateExtraction() {
+            const resultDiv = document.getElementById('coordinateResult');
+            const text = document.getElementById('coordinateText').value;
+            
+            try {
+                const coordinates = ImageProcessor.parseCoordinatesFromText(text);
+                if (coordinates) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Coordinates extracted successfully!<br>
+                            Latitude: ${coordinates.lat}<br>
+                            Longitude: ${coordinates.lng}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="error">❌ No coordinates found in the text</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Test 3: Various Coordinate Formats
+        function testVariousFormats() {
+            const resultDiv = document.getElementById('formatResult');
+            const testFormats = [
+                "40.7128, -74.0060",
+                "GPS: 40.7128, -74.0060",
+                "lat: 40.7128, lon: -74.0060",
+                "40.7128 N, 74.0060 W",
+                "40.7128°N, 74.0060°W",
+                "40.7128 -74.0060",
+                "(40.7128, -74.0060)",
+                "[40.7128, -74.0060]",
+                "40.7128; -74.0060",
+                "40.7128 | -74.0060",
+                "40.7128: -74.0060",
+                "40.7128    -74.0060"
+            ];
+            
+            let results = '<div class="success"><h4>Testing various coordinate formats:</h4>';
+            let successCount = 0;
+            
+            testFormats.forEach((format, index) => {
+                try {
+                    const coordinates = ImageProcessor.parseCoordinatesFromText(format);
+                    if (coordinates) {
+                        results += `<div>✅ Format ${index + 1}: "${format}" → Lat: ${coordinates.lat}, Lng: ${coordinates.lng}</div>`;
+                        successCount++;
+                    } else {
+                        results += `<div>❌ Format ${index + 1}: "${format}" → No coordinates found</div>`;
+                    }
+                } catch (error) {
+                    results += `<div>❌ Format ${index + 1}: "${format}" → Error: ${error.message}</div>`;
+                }
+            });
+            
+            results += `<br><strong>Success Rate: ${successCount}/${testFormats.length} (${Math.round(successCount/testFormats.length*100)}%)</strong></div>`;
+            resultDiv.innerHTML = results;
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            console.log('Test page loaded successfully');
         });
     </script>
 </body>

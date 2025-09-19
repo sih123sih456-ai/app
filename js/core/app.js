@@ -54,14 +54,16 @@ const App = {
         }
         
         // Monitor data operations
-        this.originalCreateIssue = DataManager.createIssue;
-        DataManager.createIssue = function(issueData) {
-            const start = performance.now();
-            const result = this.originalCreateIssue.call(DataManager, issueData);
-            const end = performance.now();
-            console.log(`Issue creation took ${(end - start).toFixed(2)}ms`);
-            return result;
-        };
+        if (DataManager && DataManager.createIssue) {
+            const originalCreateIssue = DataManager.createIssue;
+            DataManager.createIssue = function(issueData) {
+                const start = performance.now();
+                const result = originalCreateIssue.call(DataManager, issueData);
+                const end = performance.now();
+                console.log(`Issue creation took ${(end - start).toFixed(2)}ms`);
+                return result;
+            };
+        }
     },
 
     // Initialize core functionality

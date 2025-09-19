@@ -222,7 +222,7 @@ const ImageProcessor = {
         const cleanText = text.replace(/\s+/g, ' ').trim();
         console.log('Cleaning text for coordinate parsing:', cleanText);
         
-        // Various coordinate patterns
+        // Various coordinate patterns - more comprehensive
         const patterns = [
             // Decimal degrees: 40.7128, -74.0060
             /(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/g,
@@ -235,7 +235,27 @@ const ImageProcessor = {
             // Coordinates format: Coordinates: 40.7128, -74.0060
             /coord[inates]?:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
             // Location format: Location: 40.7128, -74.0060
-            /location:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi
+            /location:\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/gi,
+            // Google Maps format: 40.7128°N, 74.0060°W
+            /(-?\d+\.?\d*)°[NS]\s*,?\s*(-?\d+\.?\d*)°[EW]/gi,
+            // Space separated: 40.7128 -74.0060
+            /(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/g,
+            // With parentheses: (40.7128, -74.0060)
+            /\((-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\)/g,
+            // With brackets: [40.7128, -74.0060]
+            /\[(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\]/g,
+            // With quotes: "40.7128, -74.0060"
+            /"(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)"/g,
+            // With single quotes: '40.7128, -74.0060'
+            /'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)'/g,
+            // With semicolon: 40.7128; -74.0060
+            /(-?\d+\.?\d*)\s*;\s*(-?\d+\.?\d*)/g,
+            // With pipe: 40.7128 | -74.0060
+            /(-?\d+\.?\d*)\s*\|\s*(-?\d+\.?\d*)/g,
+            // With colon: 40.7128: -74.0060
+            /(-?\d+\.?\d*)\s*:\s*(-?\d+\.?\d*)/g,
+            // With tab or multiple spaces: 40.7128    -74.0060
+            /(-?\d+\.?\d*)\s{2,}(-?\d+\.?\d*)/g
         ];
         
         for (const pattern of patterns) {
@@ -246,8 +266,12 @@ const ImageProcessor = {
                 
                 // Validate coordinate ranges
                 if (this.isValidCoordinate(lat, lng)) {
-                    console.log('Valid coordinates found:', { lat, lng });
+                    console.log('Valid coordinates found with pattern:', pattern, { lat, lng });
                     return { lat, lng };
+                } else if (this.isValidCoordinate(lng, lat)) {
+                    // Try swapped coordinates
+                    console.log('Valid coordinates found (swapped):', { lat: lng, lng: lat });
+                    return { lat: lng, lng: lat };
                 }
             }
         }
@@ -264,6 +288,45 @@ const ImageProcessor = {
             if (this.isValidCoordinate(lat, lng)) {
                 console.log('Valid coordinate pair found:', { lat, lng });
                 return { lat, lng };
+            } else if (this.isValidCoordinate(lng, lat)) {
+                // Try swapped coordinates
+                console.log('Valid coordinate pair found (swapped):', { lat: lng, lng: lat });
+                return { lat: lng, lng: lat };
+            }
+        }
+        
+        // Try to find coordinates in different formats
+        const alternativePatterns = [
+            // DMS format: 40°42'46.08"N, 74°0'21.6"W
+            /(\d+)°(\d+)'([\d.]+)"[NS]\s*,?\s*(\d+)°(\d+)'([\d.]+)"[EW]/gi,
+            // DMS without quotes: 40°42'46.08N, 74°0'21.6W
+            /(\d+)°(\d+)'([\d.]+)[NS]\s*,?\s*(\d+)°(\d+)'([\d.]+)[EW]/gi
+        ];
+        
+        for (const pattern of alternativePatterns) {
+            const matches = [...cleanText.matchAll(pattern)];
+            for (const match of matches) {
+                const latDeg = parseInt(match[1]);
+                const latMin = parseInt(match[2]);
+                const latSec = parseFloat(match[3]);
+                const lngDeg = parseInt(match[4]);
+                const lngMin = parseInt(match[5]);
+                const lngSec = parseFloat(match[6]);
+                
+                const lat = latDeg + latMin / 60 + latSec / 3600;
+                const lng = lngDeg + lngMin / 60 + lngSec / 3600;
+                
+                // Apply direction
+                const latDir = match[0].includes('S') ? -1 : 1;
+                const lngDir = match[0].includes('W') ? -1 : 1;
+                
+                const finalLat = lat * latDir;
+                const finalLng = lng * lngDir;
+                
+                if (this.isValidCoordinate(finalLat, finalLng)) {
+                    console.log('Valid DMS coordinates found:', { lat: finalLat, lng: finalLng });
+                    return { lat: finalLat, lng: finalLng };
+                }
             }
         }
         
@@ -273,8 +336,27 @@ const ImageProcessor = {
 
     // Validate if coordinates are within valid ranges
     isValidCoordinate(lat, lng) {
-        return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180 && 
-               !isNaN(lat) && !isNaN(lng) && isFinite(lat) && isFinite(lng);
+        // Basic validation
+        if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) {
+            return false;
+        }
+        
+        // Standard coordinate ranges
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            return true;
+        }
+        
+        // Sometimes coordinates might be in different formats
+        // Check if they're reasonable for common locations
+        if (Math.abs(lat) <= 180 && Math.abs(lng) <= 180) {
+            // Might be swapped coordinates, check if they make sense
+            if (Math.abs(lat) <= 90 && Math.abs(lng) <= 90) {
+                // Likely swapped, but still valid range
+                return true;
+            }
+        }
+        
+        return false;
     },
 
 
