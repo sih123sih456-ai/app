@@ -13,70 +13,223 @@ const DataManager = {
         if (this.issues.length === 0) {
             this.loadSampleData();
         }
+        
+        // Run storage cleanup on initialization
+        this.cleanupStorage();
+        
+        // Log storage info for debugging
+        const storageInfo = this.getStorageInfo();
+        if (storageInfo) {
+            console.log('Storage usage:', storageInfo.totalSizeFormatted);
+        }
+        
         console.log('DataManager initialized');
     },
 
-    // Load data from localStorage
+    // Load data from localStorage with error handling
     loadFromStorage() {
         try {
             console.log('Loading data from localStorage...');
             
-            const storedIssues = localStorage.getItem('civicIssues');
-            if (storedIssues) {
-                this.issues = JSON.parse(storedIssues);
-                console.log('Loaded issues:', this.issues.length);
-            }
-
-            const storedRequests = localStorage.getItem('civicAccessRequests');
-            if (storedRequests) {
-                this.accessRequests = JSON.parse(storedRequests);
-                console.log('Loaded access requests:', this.accessRequests.length);
-            }
-
-            const storedUsers = localStorage.getItem('civicUsers');
-            if (storedUsers) {
-                this.users = JSON.parse(storedUsers);
-                console.log('Loaded users:', this.users.length);
-            }
-
-            const storedOfficers = localStorage.getItem('civicOfficers');
-            if (storedOfficers) {
-                this.officers = JSON.parse(storedOfficers);
-                console.log('Loaded officers:', this.officers.length);
-            }
-
-            const storedAdmins = localStorage.getItem('civicAdmins');
-            if (storedAdmins) {
-                this.admins = JSON.parse(storedAdmins);
-                console.log('Loaded admins:', this.admins.length);
-            }
-
-            const storedNotifications = localStorage.getItem('civicNotifications');
-            if (storedNotifications) {
-                this.notifications = JSON.parse(storedNotifications);
-                console.log('Loaded notifications:', this.notifications.length);
+            // Check if localStorage is available
+            if (!this.isLocalStorageAvailable()) {
+                console.warn('localStorage not available, using default data');
+                this.loadSampleData();
+                return;
             }
             
-            console.log('Data loading completed');
+            // Load each item individually with error handling
+            const storageKeys = [
+                'civicIssues',
+                'civicAccessRequests', 
+                'civicUsers',
+                'civicOfficers',
+                'civicAdmins',
+                'civicNotifications'
+            ];
+            
+            let loadedCount = 0;
+            
+            for (const key of storageKeys) {
+                try {
+                    const storedData = localStorage.getItem(key);
+                    if (storedData) {
+                        const parsedData = JSON.parse(storedData);
+                        
+                        // Assign to appropriate property
+                        switch (key) {
+                            case 'civicIssues':
+                                this.issues = Array.isArray(parsedData) ? parsedData : [];
+                                console.log('Loaded issues:', this.issues.length);
+                                break;
+                            case 'civicAccessRequests':
+                                this.accessRequests = Array.isArray(parsedData) ? parsedData : [];
+                                console.log('Loaded access requests:', this.accessRequests.length);
+                                break;
+                            case 'civicUsers':
+                                this.users = Array.isArray(parsedData) ? parsedData : [];
+                                console.log('Loaded users:', this.users.length);
+                                break;
+                            case 'civicOfficers':
+                                this.officers = Array.isArray(parsedData) ? parsedData : [];
+                                console.log('Loaded officers:', this.officers.length);
+                                break;
+                            case 'civicAdmins':
+                                this.admins = Array.isArray(parsedData) ? parsedData : [];
+                                console.log('Loaded admins:', this.admins.length);
+                                break;
+                            case 'civicNotifications':
+                                this.notifications = Array.isArray(parsedData) ? parsedData : [];
+                                console.log('Loaded notifications:', this.notifications.length);
+                                break;
+                        }
+                        loadedCount++;
+                    }
+                } catch (itemError) {
+                    console.error(`Failed to load ${key}:`, itemError);
+                    // Initialize with empty array if loading fails
+                    switch (key) {
+                        case 'civicIssues': this.issues = []; break;
+                        case 'civicAccessRequests': this.accessRequests = []; break;
+                        case 'civicUsers': this.users = []; break;
+                        case 'civicOfficers': this.officers = []; break;
+                        case 'civicAdmins': this.admins = []; break;
+                        case 'civicNotifications': this.notifications = []; break;
+                    }
+                }
+            }
+            
+            console.log(`Data loading completed: ${loadedCount}/${storageKeys.length} items loaded`);
+            
+            // If no data was loaded, initialize with sample data
+            if (loadedCount === 0) {
+                console.log('No data found, initializing with sample data');
+                this.loadSampleData();
+            }
+            
         } catch (error) {
-            console.error('Error loading from storage:', error);
+            console.error('Critical error loading from storage:', error);
+            // Initialize with sample data as fallback
+            this.loadSampleData();
         }
     },
 
-    // Save data to localStorage
+    // Save data to localStorage with error handling and fallback
     saveToStorage() {
         try {
             console.log('Saving data to localStorage...');
-            localStorage.setItem('civicIssues', JSON.stringify(this.issues));
-            localStorage.setItem('civicAccessRequests', JSON.stringify(this.accessRequests));
-            localStorage.setItem('civicUsers', JSON.stringify(this.users));
-            localStorage.setItem('civicOfficers', JSON.stringify(this.officers));
-            localStorage.setItem('civicAdmins', JSON.stringify(this.admins));
-            localStorage.setItem('civicNotifications', JSON.stringify(this.notifications));
-            console.log('Data saved to localStorage successfully');
+            
+            // Check if localStorage is available
+            if (!this.isLocalStorageAvailable()) {
+                console.warn('localStorage not available, using memory storage');
+                return false;
+            }
+            
+            // Try to save each item individually to identify which one fails
+            const storageItems = {
+                'civicIssues': this.issues,
+                'civicAccessRequests': this.accessRequests,
+                'civicUsers': this.users,
+                'civicOfficers': this.officers,
+                'civicAdmins': this.admins,
+                'civicNotifications': this.notifications
+            };
+            
+            let successCount = 0;
+            let failedItems = [];
+            
+            for (const [key, data] of Object.entries(storageItems)) {
+                try {
+                    const jsonData = JSON.stringify(data);
+                    localStorage.setItem(key, jsonData);
+                    successCount++;
+                } catch (itemError) {
+                    console.error(`Failed to save ${key}:`, itemError);
+                    failedItems.push(key);
+                    
+                    // If it's a quota exceeded error, try to clean up old data
+                    if (itemError.name === 'QuotaExceededError') {
+                        this.handleQuotaExceeded(key, data);
+                    }
+                }
+            }
+            
+            if (successCount > 0) {
+                console.log(`Data saved successfully: ${successCount}/${Object.keys(storageItems).length} items`);
+            }
+            
+            if (failedItems.length > 0) {
+                console.warn('Failed to save some items:', failedItems);
+                // Don't throw error, just log warning to prevent function stopping
+            }
+            
+            return successCount > 0;
+            
         } catch (error) {
-            console.error('Error saving to storage:', error);
+            console.error('Critical error saving to storage:', error);
+            // Don't throw error to prevent function stopping
+            return false;
         }
+    },
+
+    // Check if localStorage is available
+    isLocalStorageAvailable() {
+        try {
+            const test = '__localStorage_test__';
+            localStorage.setItem(test, test);
+            localStorage.removeItem(test);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    // Handle quota exceeded error
+    handleQuotaExceeded(key, data) {
+        try {
+            console.log(`Handling quota exceeded for ${key}, attempting cleanup...`);
+            
+            // Clean up old notifications (keep only last 50)
+            if (key === 'civicNotifications' && data.length > 50) {
+                const cleanedNotifications = data.slice(-50);
+                localStorage.setItem(key, JSON.stringify(cleanedNotifications));
+                this.notifications = cleanedNotifications;
+                console.log('Cleaned up old notifications');
+                return;
+            }
+            
+            // Clean up old issues (keep only last 100)
+            if (key === 'civicIssues' && data.length > 100) {
+                const cleanedIssues = data.slice(-100);
+                localStorage.setItem(key, JSON.stringify(cleanedIssues));
+                this.issues = cleanedIssues;
+                console.log('Cleaned up old issues');
+                return;
+            }
+            
+            // For other data, try to save with reduced size
+            const reducedData = this.reduceDataSize(data);
+            localStorage.setItem(key, JSON.stringify(reducedData));
+            console.log(`Reduced data size for ${key}`);
+            
+        } catch (cleanupError) {
+            console.error('Cleanup failed:', cleanupError);
+        }
+    },
+
+    // Reduce data size by removing unnecessary fields
+    reduceDataSize(data) {
+        if (Array.isArray(data)) {
+            return data.map(item => {
+                const reduced = { ...item };
+                // Remove large fields that might cause quota issues
+                delete reduced.photos;
+                delete reduced.statusHistory;
+                delete reduced.comments;
+                return reduced;
+            });
+        }
+        return data;
     },
 
     // Load sample data
@@ -239,65 +392,156 @@ const DataManager = {
 
     // Issue management
     createIssue(issueData) {
-        const issue = {
-            id: this.generateIssueId(),
-            ...issueData,
-            submittedDate: new Date().toISOString(),
-            status: 'pending',
-            escalationLevel: 'Block',
-            department: issueData.department || this.determineDepartment(issueData),
-            views: 0,
-            upvotes: 0,
-            comments: [],
-            statusHistory: [{
+        try {
+            const issue = {
+                id: this.generateIssueId(),
+                ...issueData,
+                submittedDate: new Date().toISOString(),
                 status: 'pending',
-                changedBy: issueData.submittedBy,
-                changedAt: new Date().toISOString(),
-                notes: 'Issue created'
-            }]
-        };
-        this.issues.push(issue);
-        
-        // Create notification for admin
-        this.createNotification({
-            type: 'new_issue',
-            title: 'New Issue Reported',
-            message: `New issue "${issue.title}" has been reported by ${issueData.submittedBy}`,
-            recipient: 'admin',
-            issueId: issue.id,
-            priority: issue.urgency
-        });
-        
-        // Save to storage
-        this.saveToStorage();
-        return issue;
+                escalationLevel: 'Block',
+                department: issueData.department || this.determineDepartment(issueData),
+                views: 0,
+                upvotes: 0,
+                comments: [],
+                statusHistory: [{
+                    status: 'pending',
+                    changedBy: issueData.submittedBy,
+                    changedAt: new Date().toISOString(),
+                    notes: 'Issue created'
+                }]
+            };
+            
+            // Add issue to memory
+            this.issues.push(issue);
+            console.log('Issue added to memory:', issue.id);
+            
+            // Create notification for admin (with error handling)
+            try {
+                this.createNotification({
+                    type: 'new_issue',
+                    title: 'New Issue Reported',
+                    message: `New issue "${issue.title}" has been reported by ${issueData.submittedBy}`,
+                    recipient: 'admin',
+                    issueId: issue.id,
+                    priority: issue.urgency
+                });
+            } catch (notificationError) {
+                console.warn('Failed to create notification:', notificationError);
+                // Continue without notification
+            }
+            
+            // Save to storage (with error handling)
+            const saveSuccess = this.saveToStorage();
+            if (!saveSuccess) {
+                console.warn('Failed to save to storage, but issue created in memory');
+            }
+            
+            return issue;
+            
+        } catch (error) {
+            console.error('Error creating issue:', error);
+            // Return a basic issue object to prevent complete failure
+            return {
+                id: Date.now(),
+                ...issueData,
+                submittedDate: new Date().toISOString(),
+                status: 'pending',
+                escalationLevel: 'Block',
+                department: 'General Services',
+                views: 0,
+                upvotes: 0,
+                comments: [],
+                statusHistory: [{
+                    status: 'pending',
+                    changedBy: issueData.submittedBy || 'unknown',
+                    changedAt: new Date().toISOString(),
+                    notes: 'Issue created (with errors)'
+                }]
+            };
+        }
     },
 
-    // Determine department based on issue content
+    // Determine department based on issue content with enhanced matching
     determineDepartment(issueData) {
         const title = (issueData.title || '').toLowerCase();
         const description = (issueData.description || '').toLowerCase();
         const location = (issueData.location || '').toLowerCase();
         
-        // Keywords for different departments
+        // Enhanced keywords for different departments with more specific terms
         const departmentKeywords = {
-            'Public Works': ['pothole', 'road', 'street', 'sidewalk', 'drainage', 'sewer', 'water', 'infrastructure'],
-            'Environmental Services': ['garbage', 'waste', 'recycling', 'trash', 'cleanup', 'pollution'],
-            'Transportation': ['traffic', 'signal', 'light', 'parking', 'bus', 'transit'],
-            'Parks & Recreation': ['park', 'playground', 'recreation', 'sports', 'garden'],
-            'Public Safety': ['safety', 'emergency', 'fire', 'police', 'security'],
-            'Utilities': ['electricity', 'power', 'gas', 'internet', 'cable']
+            'Waste Water Department': [
+                'sewer', 'sewage', 'wastewater', 'drainage', 'drain', 'pipe', 'manhole', 
+                'sewer line', 'sewage treatment', 'waste water', 'drainage system', 
+                'blocked drain', 'sewer backup', 'overflow', 'septic', 'wastewater treatment'
+            ],
+            'Road Construction Department': [
+                'road', 'street', 'highway', 'pavement', 'asphalt', 'pothole', 'construction',
+                'road work', 'street repair', 'pavement repair', 'road construction', 
+                'highway maintenance', 'road maintenance', 'street construction',
+                'road damage', 'street damage', 'pavement damage', 'road hazard'
+            ],
+            'Public Works': [
+                'infrastructure', 'sidewalk', 'bridge', 'tunnel', 'public facility',
+                'city infrastructure', 'municipal', 'public building', 'facility maintenance'
+            ],
+            'Environmental Services': [
+                'garbage', 'waste', 'recycling', 'trash', 'cleanup', 'pollution',
+                'environmental', 'litter', 'waste management', 'garbage collection',
+                'recycling center', 'waste disposal', 'environmental cleanup'
+            ],
+            'Transportation': [
+                'traffic', 'signal', 'light', 'parking', 'bus', 'transit', 'traffic light',
+                'stop sign', 'traffic signal', 'parking meter', 'bus stop', 'transit stop',
+                'traffic management', 'parking enforcement'
+            ],
+            'Parks & Recreation': [
+                'park', 'playground', 'recreation', 'sports', 'garden', 'playground equipment',
+                'park maintenance', 'recreation facility', 'sports field', 'community garden'
+            ],
+            'Public Safety': [
+                'safety', 'emergency', 'fire', 'police', 'security', 'emergency response',
+                'safety hazard', 'emergency service', 'public safety', 'safety concern'
+            ],
+            'Utilities': [
+                'electricity', 'power', 'gas', 'internet', 'cable', 'utility', 'power line',
+                'electrical', 'gas line', 'utility pole', 'power outage', 'gas leak',
+                'electrical issue', 'utility service'
+            ],
+            'Water Department': [
+                'water', 'water supply', 'water line', 'water leak', 'water main',
+                'water service', 'water pressure', 'water quality', 'water treatment',
+                'drinking water', 'water pipe', 'water connection'
+            ]
         };
         
         const allText = `${title} ${description} ${location}`;
         
+        // Score each department based on keyword matches
+        const departmentScores = {};
+        
         for (const [department, keywords] of Object.entries(departmentKeywords)) {
-            if (keywords.some(keyword => allText.includes(keyword))) {
-                return department;
-            }
+            let score = 0;
+            keywords.forEach(keyword => {
+                if (allText.includes(keyword)) {
+                    // Give more weight to title matches
+                    if (title.includes(keyword)) {
+                        score += 3;
+                    } else if (description.includes(keyword)) {
+                        score += 2;
+                    } else {
+                        score += 1;
+                    }
+                }
+            });
+            departmentScores[department] = score;
         }
         
-        return 'General Services'; // Default department
+        // Find the department with the highest score
+        const bestMatch = Object.entries(departmentScores)
+            .filter(([_, score]) => score > 0)
+            .sort((a, b) => b[1] - a[1])[0];
+        
+        return bestMatch ? bestMatch[0] : 'General Services';
     },
 
     updateIssue(issueId, updates) {
@@ -610,6 +854,46 @@ const DataManager = {
         ).sort((a, b) => b.rating - a.rating); // Sort by rating
     },
 
+    // Get all available officers (for cross-department assignment)
+    getAllAvailableOfficers() {
+        return this.officers.filter(officer => 
+            officer.availability === 'available' && 
+            officer.currentIssues < officer.maxIssues
+        ).sort((a, b) => b.rating - a.rating);
+    },
+
+    // Check if officer department matches issue department
+    isDepartmentMatch(issueDepartment, officerDepartment) {
+        return issueDepartment === officerDepartment;
+    },
+
+    // Get department compatibility score
+    getDepartmentCompatibilityScore(issueDepartment, officerDepartment) {
+        if (issueDepartment === officerDepartment) {
+            return 100; // Perfect match
+        }
+        
+        // Define related departments
+        const relatedDepartments = {
+            'Waste Water Department': ['Public Works', 'Environmental Services'],
+            'Road Construction Department': ['Public Works', 'Transportation'],
+            'Public Works': ['Waste Water Department', 'Road Construction Department', 'Utilities'],
+            'Environmental Services': ['Waste Water Department', 'Public Works'],
+            'Transportation': ['Road Construction Department', 'Public Works'],
+            'Utilities': ['Public Works', 'Water Department'],
+            'Water Department': ['Utilities', 'Waste Water Department'],
+            'Parks & Recreation': ['Public Works'],
+            'Public Safety': ['General Services']
+        };
+        
+        const related = relatedDepartments[issueDepartment] || [];
+        if (related.includes(officerDepartment)) {
+            return 75; // Related department
+        }
+        
+        return 25; // Different department
+    },
+
     getOfficerAvailabilityStatus(officerEmail) {
         const officer = this.getOfficerByEmail(officerEmail);
         if (!officer) return null;
@@ -714,6 +998,104 @@ const DataManager = {
         });
         
         return stats;
+    },
+
+    // Storage cleanup and maintenance
+    cleanupStorage() {
+        try {
+            console.log('Starting storage cleanup...');
+            
+            // Clean up old notifications (keep last 50)
+            if (this.notifications.length > 50) {
+                this.notifications = this.notifications.slice(-50);
+                console.log('Cleaned up old notifications');
+            }
+            
+            // Clean up old issues (keep last 100)
+            if (this.issues.length > 100) {
+                this.issues = this.issues.slice(-100);
+                console.log('Cleaned up old issues');
+            }
+            
+            // Clean up resolved issues older than 30 days
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const oldResolvedIssues = this.issues.filter(issue => 
+                issue.status === 'resolved' && 
+                new Date(issue.submittedDate) < thirtyDaysAgo
+            );
+            
+            if (oldResolvedIssues.length > 0) {
+                this.issues = this.issues.filter(issue => 
+                    !(issue.status === 'resolved' && new Date(issue.submittedDate) < thirtyDaysAgo)
+                );
+                console.log(`Cleaned up ${oldResolvedIssues.length} old resolved issues`);
+            }
+            
+            // Save cleaned data
+            this.saveToStorage();
+            console.log('Storage cleanup completed');
+            
+        } catch (error) {
+            console.error('Error during storage cleanup:', error);
+        }
+    },
+
+    // Get storage usage information
+    getStorageInfo() {
+        try {
+            let totalSize = 0;
+            const storageInfo = {};
+            
+            const keys = ['civicIssues', 'civicAccessRequests', 'civicUsers', 'civicOfficers', 'civicAdmins', 'civicNotifications'];
+            
+            keys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    const size = new Blob([data]).size;
+                    storageInfo[key] = {
+                        size: size,
+                        sizeFormatted: this.formatBytes(size),
+                        items: JSON.parse(data).length
+                    };
+                    totalSize += size;
+                }
+            });
+            
+            return {
+                totalSize: totalSize,
+                totalSizeFormatted: this.formatBytes(totalSize),
+                items: storageInfo,
+                quota: this.getStorageQuota()
+            };
+            
+        } catch (error) {
+            console.error('Error getting storage info:', error);
+            return null;
+        }
+    },
+
+    // Format bytes to human readable format
+    formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    // Get storage quota information
+    getStorageQuota() {
+        try {
+            if ('storage' in navigator && 'estimate' in navigator.storage) {
+                return navigator.storage.estimate();
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting storage quota:', error);
+            return null;
+        }
     }
 };
 

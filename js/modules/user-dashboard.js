@@ -28,7 +28,15 @@ const UserDashboard = {
         // Location selection
         const selectLocationBtn = document.getElementById('selectLocationBtn');
         if (selectLocationBtn && !selectLocationBtn.hasAttribute('data-listener-added')) {
-            selectLocationBtn.addEventListener('click', () => MapManager.showLocationMap());
+            selectLocationBtn.addEventListener('click', () => {
+                MapManager.showLocationMap();
+                // Initialize map if not already done
+                if (!MapManager.maps.userMap) {
+                    setTimeout(() => {
+                        MapManager.initializeUserMap();
+                    }, 200);
+                }
+            });
             selectLocationBtn.setAttribute('data-listener-added', 'true');
         }
         
@@ -94,6 +102,7 @@ const UserDashboard = {
         this.initializeChatbot();
         this.loadNotifications();
         this.updateEscalationLevels();
+        this.updateStorageStatus();
     },
 
     // Load notifications
@@ -312,8 +321,8 @@ const UserDashboard = {
             return;
         }
         
-        // Create issue
-        const issue = DataManager.createIssue({
+        // Auto-detect department before creating issue
+        const issueData = {
             title,
             description,
             location: finalLocation,
@@ -321,11 +330,24 @@ const UserDashboard = {
             urgency,
             submittedBy: currentUser.email,
             photos: this.getPhotoPreviews()
-        });
+        };
+        
+        const detectedDepartment = DataManager.determineDepartment(issueData);
+        
+        // Show department detection result to user
+        this.showDepartmentDetection(detectedDepartment, title);
+        
+        // Create issue with detected department
+        const issue = DataManager.createIssue(issueData);
         
         console.log('Issue created:', issue);
         
-        Notifications.success('Issue submitted successfully!');
+        // Check if issue was created successfully
+        if (issue && issue.id) {
+            Notifications.success(`Issue submitted successfully! Auto-assigned to ${detectedDepartment} department.`);
+        } else {
+            Notifications.warning('Issue submitted but there may have been storage issues. Please check your issues list.');
+        }
         
         // Reset form
         e.target.reset();
@@ -341,6 +363,32 @@ const UserDashboard = {
         // Update stats and reload issues
         this.updateStats();
         this.loadUserIssues();
+    },
+
+    // Show department detection result
+    showDepartmentDetection(department, title) {
+        // Create a temporary notification showing department detection
+        const notification = document.createElement('div');
+        notification.className = 'department-detection-notification';
+        notification.innerHTML = `
+            <div class="detection-content">
+                <i class="fas fa-brain"></i>
+                <div class="detection-text">
+                    <strong>Smart Department Detection</strong><br>
+                    Based on your issue "${title}", we've automatically assigned it to <strong>${department}</strong>
+                </div>
+            </div>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
     },
 
     // Handle photo preview
@@ -529,16 +577,10 @@ const UserDashboard = {
 
     // Initialize chatbot
     initializeChatbot() {
-        const messages = document.getElementById('chatbotMessages');
-        messages.innerHTML = `
-            <div class="chatbot-message bot">
-                <strong>CivicBot:</strong> Hello! I'm here to help you with civic issues. You can ask me about:
-                <br>• Issue status updates
-                <br>• How to submit a new issue
-                <br>• Your submitted issues
-                <br>• General guidance
-            </div>
-        `;
+        // Initialize chatbot for user role
+        if (App.getModule('chatbot')) {
+            App.getModule('chatbot').initializeForRole('user');
+        }
     },
 
     // Send chatbot message
@@ -568,6 +610,28 @@ const UserDashboard = {
             Utils.sanitizeHtml(message);
         messages.appendChild(messageDiv);
         messages.scrollTop = messages.scrollHeight;
+    },
+
+    // Update storage status
+    updateStorageStatus() {
+        try {
+            const storageInfo = DataManager.getStorageInfo();
+            const storageStatus = document.getElementById('storageStatus');
+            const storageUsage = document.getElementById('storageUsage');
+            
+            if (storageInfo && storageStatus && storageUsage) {
+                storageUsage.textContent = `Storage: ${storageInfo.totalSizeFormatted}`;
+                
+                // Show storage status if usage is high (>100KB)
+                if (storageInfo.totalSize > 100 * 1024) {
+                    storageStatus.style.display = 'flex';
+                } else {
+                    storageStatus.style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Error updating storage status:', error);
+        }
     }
 };
 

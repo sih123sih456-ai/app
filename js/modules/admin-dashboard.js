@@ -109,7 +109,7 @@ const AdminDashboard = {
         return card;
     },
 
-    // Assign issue with officer availability
+    // Assign issue with officer availability and department validation
     assignIssue(issueId) {
         const issue = DataManager.getIssue(issueId);
         if (!issue) {
@@ -118,19 +118,22 @@ const AdminDashboard = {
         }
         
         // Get available officers for the issue's department
-        const availableOfficers = DataManager.getAvailableOfficersForDepartment(issue.department);
+        const departmentOfficers = DataManager.getAvailableOfficersForDepartment(issue.department);
         
-        if (availableOfficers.length === 0) {
-            Notifications.error(`No officers available in ${issue.department} department`);
+        // Get all available officers for cross-department assignment
+        const allAvailableOfficers = DataManager.getAllAvailableOfficers();
+        
+        if (allAvailableOfficers.length === 0) {
+            Notifications.error('No officers available for assignment');
             return;
         }
         
-        // Show officer selection modal
-        this.showOfficerSelectionModal(issue, availableOfficers);
+        // Show officer selection modal with department validation
+        this.showOfficerSelectionModal(issue, departmentOfficers, allAvailableOfficers);
     },
 
-    // Show officer selection modal
-    showOfficerSelectionModal(issue, availableOfficers) {
+    // Show officer selection modal with department validation
+    showOfficerSelectionModal(issue, departmentOfficers, allAvailableOfficers) {
         // Create modal if it doesn't exist
         let modal = document.getElementById('officerSelectionModal');
         if (!modal) {
@@ -138,7 +141,7 @@ const AdminDashboard = {
             modal.id = 'officerSelectionModal';
             modal.className = 'modal';
             modal.innerHTML = `
-                <div class="modal-content">
+                <div class="modal-content large-modal">
                     <div class="modal-header">
                         <h3>Assign Officer to Issue</h3>
                         <span class="close" onclick="this.closest('.modal').style.display='none'">&times;</span>
@@ -149,6 +152,16 @@ const AdminDashboard = {
                             <p><strong>Department:</strong> ${issue.department}</p>
                             <p><strong>Urgency:</strong> ${Utils.formatUrgency(issue.urgency)}</p>
                         </div>
+                        
+                        <div class="officer-selection-tabs">
+                            <button class="tab-btn active" onclick="AdminDashboard.switchOfficerTab('department')">
+                                <i class="fas fa-check-circle"></i> Department Match (${departmentOfficers.length})
+                            </button>
+                            <button class="tab-btn" onclick="AdminDashboard.switchOfficerTab('all')">
+                                <i class="fas fa-users"></i> All Available (${allAvailableOfficers.length})
+                            </button>
+                        </div>
+                        
                         <div class="officers-list" id="officersList"></div>
                     </div>
                 </div>
@@ -156,17 +169,66 @@ const AdminDashboard = {
             document.body.appendChild(modal);
         }
         
-        // Populate officers list
+        // Store data for tab switching
+        this.currentIssue = issue;
+        this.departmentOfficers = departmentOfficers;
+        this.allAvailableOfficers = allAvailableOfficers;
+        
+        // Show department officers by default
+        this.displayOfficers(departmentOfficers, issue, true);
+        
+        // Show modal
+        modal.style.display = 'block';
+    },
+
+    // Switch between department and all officers tabs
+    switchOfficerTab(tab) {
+        const tabs = document.querySelectorAll('.officer-selection-tabs .tab-btn');
+        tabs.forEach(t => t.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        if (tab === 'department') {
+            this.displayOfficers(this.departmentOfficers, this.currentIssue, true);
+        } else {
+            this.displayOfficers(this.allAvailableOfficers, this.currentIssue, false);
+        }
+    },
+
+    // Display officers with department validation
+    displayOfficers(officers, issue, isDepartmentMatch) {
         const officersList = document.getElementById('officersList');
         officersList.innerHTML = '';
         
-        availableOfficers.forEach(officer => {
+        if (officers.length === 0) {
+            officersList.innerHTML = '<div class="no-officers">No officers available</div>';
+            return;
+        }
+        
+        officers.forEach(officer => {
+            const isMatch = DataManager.isDepartmentMatch(issue.department, officer.department);
+            const compatibilityScore = DataManager.getDepartmentCompatibilityScore(issue.department, officer.department);
+            
             const officerCard = document.createElement('div');
-            officerCard.className = 'officer-card';
+            officerCard.className = `officer-card ${isMatch ? 'department-match' : 'cross-department'}`;
+            
+            // Department compatibility indicator
+            let departmentIndicator = '';
+            if (isMatch) {
+                departmentIndicator = '<div class="department-indicator perfect-match"><i class="fas fa-check-circle"></i> Perfect Department Match</div>';
+            } else if (compatibilityScore >= 75) {
+                departmentIndicator = '<div class="department-indicator related-match"><i class="fas fa-exclamation-triangle"></i> Related Department</div>';
+            } else {
+                departmentIndicator = '<div class="department-indicator different-dept"><i class="fas fa-info-circle"></i> Different Department</div>';
+            }
+            
             officerCard.innerHTML = `
                 <div class="officer-info">
                     <div class="officer-name">${officer.name}</div>
                     <div class="officer-specialization">${officer.specialization}</div>
+                    <div class="officer-department">
+                        <i class="fas fa-building"></i> ${officer.department}
+                    </div>
+                    ${departmentIndicator}
                     <div class="officer-details">
                         <span class="rating">⭐ ${officer.rating}/5</span>
                         <span class="experience">${officer.experience}</span>
@@ -177,25 +239,46 @@ const AdminDashboard = {
                     </div>
                 </div>
                 <div class="officer-actions">
-                    <button class="btn-primary" onclick="AdminDashboard.assignToOfficer(${issue.id}, '${officer.email}')">
-                        Assign
+                    <button class="btn-primary" onclick="AdminDashboard.assignToOfficer(${issue.id}, '${officer.email}', ${isMatch})">
+                        ${isMatch ? 'Assign' : 'Assign (Cross-Dept)'}
                     </button>
                 </div>
             `;
             officersList.appendChild(officerCard);
         });
-        
-        // Show modal
-        modal.style.display = 'block';
     },
 
-    // Assign issue to specific officer
-    assignToOfficer(issueId, officerEmail) {
+    // Assign issue to specific officer with department validation
+    assignToOfficer(issueId, officerEmail, isDepartmentMatch = true) {
+        const issue = DataManager.getIssue(issueId);
+        const officer = DataManager.getOfficerByEmail(officerEmail);
+        
+        if (!issue || !officer) {
+            Notifications.error('Issue or officer not found');
+            return;
+        }
+        
+        // Check department match and show warning if needed
+        if (!isDepartmentMatch) {
+            const confirmMessage = `Are you sure you want to assign this ${issue.department} issue to ${officer.name} from ${officer.department}? This is a cross-department assignment.`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            // Show cross-department assignment notification
+            Notifications.warning(`Cross-department assignment: ${issue.department} issue assigned to ${officer.department} officer`);
+        }
+        
         const success = DataManager.assignOfficerToIssue(issueId, officerEmail);
         
         if (success) {
-            const officer = DataManager.getOfficerByEmail(officerEmail);
-            Notifications.success(`Issue assigned to ${officer.name}`);
+            // Enhanced success message based on department match
+            if (isDepartmentMatch) {
+                Notifications.success(`Issue assigned to ${officer.name} (Perfect department match)`);
+            } else {
+                Notifications.success(`Issue assigned to ${officer.name} (Cross-department assignment)`);
+            }
             
             // Close modal
             document.getElementById('officerSelectionModal').style.display = 'none';

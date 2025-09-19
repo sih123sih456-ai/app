@@ -13,6 +13,12 @@ const MapManager = {
         const mapContainer = document.getElementById('mapContainer');
         if (!mapContainer || this.maps.userMap) return;
 
+        // Set proper height for map container
+        mapContainer.style.height = '400px';
+        mapContainer.style.width = '100%';
+        mapContainer.style.borderRadius = '10px';
+        mapContainer.style.border = '2px solid #e0e0e0';
+
         this.maps.userMap = L.map('mapContainer').setView([40.7128, -74.0060], 13);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -26,6 +32,9 @@ const MapManager = {
 
         // Add current location button
         this.addCurrentLocationButton(this.maps.userMap);
+        
+        // Add instruction popup
+        this.addMapInstructions();
     },
 
     // Initialize admin map
@@ -219,14 +228,39 @@ const MapManager = {
     showLocationMap() {
         const mapContainer = document.getElementById('mapContainer');
         if (mapContainer) {
-            mapContainer.style.display = mapContainer.style.display === 'none' ? 'block' : 'none';
+            mapContainer.style.display = 'block';
             
             if (!this.maps.userMap) {
                 setTimeout(() => {
                     this.initializeUserMap();
                 }, 100);
+            } else {
+                // Refresh map if it already exists
+                setTimeout(() => {
+                    this.maps.userMap.invalidateSize();
+                }, 100);
             }
         }
+    },
+
+    // Add map instructions
+    addMapInstructions() {
+        const instructionDiv = L.control({ position: 'topleft' });
+        
+        instructionDiv.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'map-instructions');
+            div.innerHTML = `
+                <div style="background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 12px; max-width: 200px;">
+                    <strong>📍 Map Instructions:</strong><br>
+                    • Click anywhere on the map to select location<br>
+                    • Use the crosshair button to get your current location<br>
+                    • Selected location will be marked with a pin
+                </div>
+            `;
+            return div;
+        };
+        
+        instructionDiv.addTo(this.maps.userMap);
     },
 
     // Hide location map

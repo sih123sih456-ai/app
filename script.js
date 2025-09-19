@@ -7,6 +7,11 @@ let maps = {};
 let currentMap = null;
 let currentLocation = null;
 
+// Auto-reload configuration
+let autoReloadInterval = null;
+let autoReloadEnabled = false;
+const AUTO_RELOAD_DURATION = 30 * 60 * 1000; // 30 minutes in milliseconds
+
 // Sample data for demonstration
 const sampleIssues = [
     {
@@ -75,8 +80,49 @@ document.addEventListener('DOMContentLoaded', function() {
     accessRequests = [...sampleAccessRequests];
     
     initializeEventListeners();
-    showPage('loginPage');
+    restoreUserSession();
+    
+    // Show login page if no session restored
+    if (!currentUser) {
+        showPage('loginPage');
+    }
 });
+
+// Restore user session from localStorage
+function restoreUserSession() {
+    try {
+        const savedUser = localStorage.getItem('civicCurrentUser');
+        const savedRole = localStorage.getItem('civicCurrentRole');
+        
+        if (savedUser && savedRole) {
+            currentUser = JSON.parse(savedUser);
+            currentRole = savedRole;
+            
+            // Start auto-reload for restored session
+            startAutoReload();
+            
+            // Show appropriate dashboard
+            switch (currentRole) {
+                case 'user':
+                    showUserDashboard();
+                    break;
+                case 'admin':
+                    showAdminDashboard();
+                    break;
+                case 'officer':
+                    showOfficerDashboard();
+                    break;
+            }
+            
+            console.log('User session restored:', currentUser);
+        }
+    } catch (error) {
+        console.error('Error restoring user session:', error);
+        // Clear invalid session data
+        localStorage.removeItem('civicCurrentUser');
+        localStorage.removeItem('civicCurrentRole');
+    }
+}
 
 // Event Listeners
 function initializeEventListeners() {
@@ -163,6 +209,14 @@ function handleUserLogin(e) {
     if (email && password) {
         currentUser = { email, role: 'user' };
         currentRole = 'user';
+        
+        // Save user data to localStorage
+        localStorage.setItem('civicCurrentUser', JSON.stringify(currentUser));
+        localStorage.setItem('civicCurrentRole', currentRole);
+        
+        // Start auto-reload
+        startAutoReload();
+        
         showToast('Login successful!', 'success');
         showUserDashboard();
     } else {
@@ -180,6 +234,14 @@ function handleUserRegister(e) {
     if (name && email && password && phone) {
         currentUser = { name, email, role: 'user' };
         currentRole = 'user';
+        
+        // Save user data to localStorage
+        localStorage.setItem('civicCurrentUser', JSON.stringify(currentUser));
+        localStorage.setItem('civicCurrentRole', currentRole);
+        
+        // Start auto-reload
+        startAutoReload();
+        
         showToast('Registration successful!', 'success');
         showUserDashboard();
     } else {
@@ -195,6 +257,14 @@ function handleAdminLogin(e) {
     if (email === 'admin@gmail.com' && password === 'admin123') {
         currentUser = { email, role: 'admin' };
         currentRole = 'admin';
+        
+        // Save user data to localStorage
+        localStorage.setItem('civicCurrentUser', JSON.stringify(currentUser));
+        localStorage.setItem('civicCurrentRole', currentRole);
+        
+        // Start auto-reload
+        startAutoReload();
+        
         showToast('Admin login successful!', 'success');
         showAdminDashboard();
     } else {
@@ -766,3 +836,187 @@ setInterval(() => {
         }
     }
 }, 30000);
+
+// Refresh Page Function (preserves data)
+function refreshPage() {
+    try {
+        console.log('Refreshing page...');
+        
+        // Show loading indicator
+        showLoadingIndicator('Refreshing page...');
+        
+        // Save current state to localStorage before refresh
+        if (currentUser) {
+            localStorage.setItem('civicCurrentUser', JSON.stringify(currentUser));
+            localStorage.setItem('civicCurrentRole', currentRole);
+        }
+        
+        // Stop auto-reload if running
+        stopAutoReload();
+        
+        // Refresh the page after a short delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
+        
+    } catch (error) {
+        console.error('Error refreshing page:', error);
+        hideLoadingIndicator();
+        alert('Error refreshing page. Please try again.');
+    }
+}
+
+// Auto-reload with logout functionality
+function startAutoReload() {
+    if (autoReloadEnabled) {
+        console.log('Auto-reload already enabled');
+        return;
+    }
+    
+    try {
+        autoReloadEnabled = true;
+        console.log('Starting auto-reload timer...');
+        
+        // Set up auto-reload interval
+        autoReloadInterval = setInterval(() => {
+            console.log('Auto-reload triggered - logging out user');
+            
+            // Show notification before logout
+            if (typeof Notifications !== 'undefined') {
+                Notifications.warning('Session expired. You will be logged out for security.');
+            }
+            
+            // Logout user
+            logout();
+            
+        }, AUTO_RELOAD_DURATION);
+        
+        console.log(`Auto-reload set for ${AUTO_RELOAD_DURATION / 1000 / 60} minutes`);
+        
+    } catch (error) {
+        console.error('Error starting auto-reload:', error);
+    }
+}
+
+// Stop auto-reload
+function stopAutoReload() {
+    if (autoReloadInterval) {
+        clearInterval(autoReloadInterval);
+        autoReloadInterval = null;
+        autoReloadEnabled = false;
+        console.log('Auto-reload stopped');
+    }
+}
+
+// Reset auto-reload timer (call on user activity)
+function resetAutoReload() {
+    if (autoReloadEnabled) {
+        stopAutoReload();
+        startAutoReload();
+        console.log('Auto-reload timer reset');
+    }
+}
+
+// Show loading indicator
+function showLoadingIndicator(message = 'Loading...') {
+    // Remove existing indicator
+    const existing = document.getElementById('loadingIndicator');
+    if (existing) {
+        existing.remove();
+    }
+    
+    // Create loading indicator
+    const indicator = document.createElement('div');
+    indicator.id = 'loadingIndicator';
+    indicator.className = 'loading-indicator';
+    indicator.innerHTML = `
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>${message}</p>
+        </div>
+    `;
+    
+    document.body.appendChild(indicator);
+}
+
+// Hide loading indicator
+function hideLoadingIndicator() {
+    const indicator = document.getElementById('loadingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+// Enhanced logout function with auto-reload cleanup
+function logout() {
+    try {
+        console.log('Logging out user...');
+        
+        // Stop auto-reload
+        stopAutoReload();
+        
+        // Clear user data
+        currentUser = null;
+        currentRole = null;
+        
+        // Clear localStorage user data
+        localStorage.removeItem('civicCurrentUser');
+        localStorage.removeItem('civicCurrentRole');
+        
+        // Hide all dashboards
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active');
+        });
+        
+        // Show login page
+        document.getElementById('loginPage').classList.add('active');
+        
+        // Reset forms
+        document.querySelectorAll('form').forEach(form => {
+            form.reset();
+        });
+        
+        // Clear any maps
+        if (currentMap) {
+            currentMap.remove();
+            currentMap = null;
+        }
+        
+        // Clear notifications
+        if (typeof Notifications !== 'undefined') {
+            Notifications.success('Logged out successfully');
+        }
+        
+        console.log('Logout completed');
+        
+    } catch (error) {
+        console.error('Error during logout:', error);
+    }
+}
+
+// Activity detection for auto-reload reset
+let lastActivity = Date.now();
+const ACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+// Track user activity
+document.addEventListener('click', () => {
+    lastActivity = Date.now();
+    resetAutoReload();
+});
+
+document.addEventListener('keypress', () => {
+    lastActivity = Date.now();
+    resetAutoReload();
+});
+
+document.addEventListener('mousemove', () => {
+    lastActivity = Date.now();
+    resetAutoReload();
+});
+
+// Check for inactivity
+setInterval(() => {
+    if (autoReloadEnabled && (Date.now() - lastActivity) > ACTIVITY_TIMEOUT) {
+        console.log('User inactive - auto-reload will trigger soon');
+    }
+}, 60000); // Check every minute
